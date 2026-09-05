@@ -417,56 +417,113 @@ body{
 .footer-link:hover{color:var(--green)}
 .disclaimer{max-width:720px;margin:1.25rem auto 0;font-size:.75rem;color:rgba(107,143,122,0.6);line-height:1.6}
 
-/* ── PHANTOM WALLET CARD ── */
-.phantom-wallet-card{
-  background:rgba(0,0,0,0.45);
-  border:1px solid rgba(255,255,255,0.06);
-  border-radius:18px;
-  padding:1.75rem;
-  backdrop-filter:blur(16px);
-  -webkit-backdrop-filter:blur(16px);
-  box-shadow:0 0 0 1px rgba(255,255,255,0.02) inset,0 4px 40px rgba(0,0,0,0.5),0 0 60px rgba(0,255,136,0.03);
+/* ── WALLET CARD ── */
+.wc-card{
+  background:rgba(8,18,12,0.85);
+  border:1px solid rgba(0,255,136,0.13);
+  border-radius:20px;
+  padding:1.5rem;
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  box-shadow:0 0 0 1px rgba(255,255,255,0.02) inset,0 8px 48px rgba(0,0,0,0.6),0 0 80px rgba(0,255,136,0.04);
   position:relative;overflow:hidden;
 }
-.phantom-wallet-card::before{
-  content:"";position:absolute;inset:0;
-  background:linear-gradient(135deg,rgba(255,255,255,0.015) 0%,transparent 55%);
-  pointer-events:none;
-}
-.phantom-wallet-card::after{
+.wc-card::after{
   content:"";position:absolute;top:0;left:0;right:0;height:1px;
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent);
+  background:linear-gradient(90deg,transparent,rgba(0,255,136,0.2),transparent);
 }
-.pwc-top{display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap}
-.pwc-icon{font-size:2rem;flex-shrink:0}
-.pwc-label{font-size:.68rem;font-weight:800;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:.2rem}
-.pwc-addr{font-size:.82rem;font-weight:700;color:rgba(176,196,200,0.4);letter-spacing:.5px}
-.btn-connect-wallet{
-  margin-left:auto;
-  background:rgba(0,255,136,0.07);
+.wc-header{display:flex;align-items:center;gap:.85rem;margin-bottom:1.5rem}
+.wc-avatar{
+  width:42px;height:42px;border-radius:50%;
+  background:linear-gradient(135deg,rgba(0,255,136,0.15),rgba(0,180,80,0.08));
   border:1px solid rgba(0,255,136,0.2);
-  color:var(--green);
-  padding:.55rem 1.1rem;border-radius:8px;
-  font-weight:800;font-size:.82rem;letter-spacing:.5px;
-  cursor:pointer;transition:background .2s,box-shadow .2s;
-  white-space:nowrap;
+  display:flex;align-items:center;justify-content:center;
+  font-family:"Bebas Neue",sans-serif;font-size:1.1rem;color:var(--green);flex-shrink:0;
 }
-.btn-connect-wallet:hover{background:rgba(0,255,136,0.13);box-shadow:0 0 16px rgba(0,255,136,0.15)}
-.pwc-divider{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.05),transparent);margin:1rem 0}
-.pwc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;text-align:center}
-.pwc-stat-val{font-family:"Bebas Neue",sans-serif;font-size:1.6rem;letter-spacing:1.5px;color:rgba(200,220,210,0.45);line-height:1;margin-bottom:.3rem}
-.pwc-stat-lbl{font-size:.65rem;font-weight:800;letter-spacing:1px;color:rgba(107,143,122,0.4);text-transform:uppercase}
-.pwc-vault-row{display:flex;justify-content:space-between;align-items:center;padding:.6rem 0;border-bottom:1px dashed rgba(255,255,255,0.04)}
-.pwc-vault-row:last-of-type{border-bottom:none}
-.pwc-vault-label{font-size:.82rem;font-weight:700;color:rgba(107,143,122,0.55)}
-.phantom-text{color:rgba(200,220,210,0.35) !important}
-.ph-blur{filter:blur(4px);user-select:none;letter-spacing:2px}
-.pwc-phantom-hint{
-  margin-top:1.25rem;
-  display:flex;align-items:center;justify-content:center;gap:.5rem;
-  font-size:.72rem;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
-  color:rgba(107,143,122,0.4);
+.wc-user-info{flex:1;min-width:0}
+.wc-username{font-weight:800;font-size:.95rem;color:var(--white);margin-bottom:.15rem}
+.wc-addr-line{font-size:.72rem;color:var(--muted);font-weight:600;letter-spacing:.3px;font-family:monospace}
+.wc-connect-btn{
+  background:rgba(0,255,136,0.08);border:1px solid rgba(0,255,136,0.22);
+  color:var(--green);padding:.45rem .9rem;border-radius:8px;
+  font-weight:800;font-size:.78rem;letter-spacing:.5px;
+  cursor:pointer;transition:background .2s,box-shadow .2s;white-space:nowrap;
 }
+.wc-connect-btn:hover{background:rgba(0,255,136,0.15);box-shadow:0 0 14px rgba(0,255,136,0.15)}
+.wc-balance-block{text-align:center;padding:1.25rem 0 1rem;border-bottom:1px solid rgba(0,255,136,0.07)}
+.wc-balance-label{font-size:.68rem;font-weight:800;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:.5rem}
+.wc-balance-val{
+  font-family:"Bebas Neue",sans-serif;font-size:2.8rem;letter-spacing:2px;
+  color:rgba(200,220,210,0.35);line-height:1;margin-bottom:.5rem;transition:color .4s;
+}
+.wc-balance-val.revealed{color:var(--white)}
+.wc-chain-badge{display:inline-flex;align-items:center;gap:.35rem;font-size:.72rem;font-weight:700;color:var(--muted)}
+.wc-chain-name{color:var(--green)}
+.wc-actions{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;
+  padding:1rem 0;border-bottom:1px solid rgba(0,255,136,0.07);
+}
+.wc-action-btn{
+  display:flex;flex-direction:column;align-items:center;gap:.3rem;
+  background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.1);
+  border-radius:10px;padding:.65rem .4rem;cursor:pointer;
+  font-size:.68rem;font-weight:700;color:var(--muted);letter-spacing:.3px;
+  transition:background .2s,border-color .2s;
+}
+.wc-action-btn:hover{background:rgba(0,255,136,0.1);border-color:rgba(0,255,136,0.2);color:var(--green)}
+.wc-action-icon{font-size:1.1rem;color:var(--green);line-height:1}
+.wc-section-label{
+  font-size:.65rem;font-weight:800;letter-spacing:1.5px;color:var(--muted);
+  text-transform:uppercase;padding:.85rem 0 .5rem;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.wc-rewards-toggle{cursor:pointer;color:var(--green);font-size:.9rem}
+.wc-token-row{display:flex;align-items:center;gap:.85rem;padding:.75rem 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+.wc-token-row--staked{background:rgba(0,255,136,0.02);border-radius:10px;padding:.75rem .6rem;margin:0 -.6rem;border-bottom:none}
+.wc-token-icon{
+  width:36px;height:36px;border-radius:50%;
+  background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.7rem;font-weight:900;color:var(--green);flex-shrink:0;
+}
+.wc-token-icon--vault{background:rgba(0,255,136,0.15);border-color:rgba(0,255,136,0.3);box-shadow:0 0 10px rgba(0,255,136,0.1)}
+.wc-token-info{flex:1;min-width:0}
+.wc-token-name{font-weight:800;font-size:.88rem;color:var(--white)}
+.wc-token-sub{font-size:.72rem;color:var(--muted);margin-top:.1rem}
+.wc-token-apy{font-size:.68rem;color:var(--green);font-weight:700;margin-top:.2rem;letter-spacing:.3px}
+.wc-token-amounts{text-align:right;flex-shrink:0}
+.wc-token-qty{font-family:"Bebas Neue",sans-serif;font-size:1.25rem;letter-spacing:1px;color:rgba(200,220,210,0.3);transition:color .4s}
+.wc-token-qty--green{color:rgba(0,255,136,0.3)}
+.wc-token-qty.revealed{color:var(--white)}
+.wc-token-qty--green.revealed{color:var(--green)}
+.wc-token-usd{font-size:.72rem;color:rgba(107,143,122,0.35);font-weight:600;transition:color .4s}
+.wc-token-usd.revealed{color:var(--muted)}
+.wc-reward-row{display:flex;align-items:flex-start;gap:.75rem;padding:.65rem 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+.wc-reward-row:last-child{border-bottom:none}
+.wc-reward-arrow{
+  width:28px;height:28px;border-radius:50%;
+  background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.12);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.8rem;color:var(--green);flex-shrink:0;margin-top:.1rem;
+}
+.wc-reward-info{flex:1}
+.wc-reward-period{font-weight:800;font-size:.83rem;color:var(--white)}
+.wc-reward-rate{font-size:.7rem;color:var(--muted);margin-top:.15rem}
+.wc-reward-amounts{text-align:right;flex-shrink:0}
+.wc-reward-qty{font-family:"Bebas Neue",sans-serif;font-size:1.1rem;letter-spacing:1px;color:rgba(0,255,136,0.3);transition:color .4s}
+.wc-reward-qty.revealed{color:var(--green)}
+.wc-reward-usd{font-size:.7rem;color:rgba(107,143,122,0.35);font-weight:600;transition:color .4s}
+.wc-reward-usd.revealed{color:var(--muted)}
+.ph-blur{filter:blur(5px);user-select:none;display:inline-block}
+.wc-disconnect-link{font-size:.75rem;color:rgba(255,96,96,0.5);font-weight:700;cursor:pointer;letter-spacing:.3px}
+.wc-disconnect-link:hover{color:#ff6060}
+.phantom-val{color:rgba(200,220,210,0.55)!important;text-shadow:0 0 18px rgba(0,255,136,0.12)!important;filter:blur(0.3px);transition:all .5s ease}
+.phantom-zeros{letter-spacing:3px;color:rgba(180,210,195,0.35)!important;font-size:1.9rem}
+.raised-val.revealed{color:var(--white)!important;text-shadow:none!important;filter:none!important}
+.raised-val.revealed span{color:var(--green)!important;text-shadow:none!important}
+#raised-lock-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:.45rem;font-size:.72rem;font-weight:700;letter-spacing:.8px;color:rgba(107,143,122,0.5);text-transform:uppercase;pointer-events:none}
+#raised-lock-icon{font-size:.9rem;opacity:.5}
+#raised-lock-overlay.hidden{display:none}
 
 /* Responsive */
 @media(max-width:900px){
@@ -599,102 +656,112 @@ body{
 
 <!-- MY WALLET -->
 <section class="section" id="my-wallet" style="background:rgba(0,0,0,0.3);border-top:1px solid rgba(0,255,136,0.07);border-bottom:1px solid rgba(0,255,136,0.07)">
-  <div class="inner" style="max-width:720px">
-    <div class="sec-head">
-      <h2 class="sec-title">MY <span class="g">WALLET</span></h2>
-      <p class="sec-desc">Connect your wallet to view your $TVT balance, vault positions, and pending rewards.</p>
-    </div>
+  <div class="inner" style="max-width:480px">
 
-    <!-- Locked state (shown by default) -->
-    <div id="wallet-locked-state">
-      <div class="phantom-wallet-card">
-        <div class="pwc-top">
-          <div class="pwc-icon">👻</div>
-          <div>
-            <div class="pwc-label">WALLET</div>
-            <div class="pwc-addr phantom-text">0x•••• •••• •••• ••••</div>
-          </div>
-          <button class="btn-connect-wallet" onclick="openConnectWallet()">Connect Wallet</button>
+    <div class="wc-card">
+
+      <!-- ── USER HEADER ── -->
+      <div class="wc-header">
+        <div class="wc-avatar" id="wc-avatar">?</div>
+        <div class="wc-user-info">
+          <div class="wc-username" id="wc-username">Guest</div>
+          <div class="wc-addr-line" id="wc-addr-display">Not connected</div>
         </div>
-        <div class="pwc-divider"></div>
-        <div class="pwc-stats">
-          <div class="pwc-stat">
-            <div class="pwc-stat-val phantom-text">$<span class="ph-blur">000,000</span></div>
-            <div class="pwc-stat-lbl">$TVT BALANCE</div>
-          </div>
-          <div class="pwc-stat">
-            <div class="pwc-stat-val phantom-text">$<span class="ph-blur">0.000</span></div>
-            <div class="pwc-stat-lbl">USD VALUE</div>
-          </div>
-          <div class="pwc-stat">
-            <div class="pwc-stat-val phantom-text"><span class="ph-blur">0.00</span>%</div>
-            <div class="pwc-stat-lbl">STAKING APY</div>
-          </div>
+        <button class="wc-connect-btn" id="wc-connect-btn" onclick="openConnectWallet()">Connect</button>
+      </div>
+
+      <!-- ── TOTAL BALANCE ── -->
+      <div class="wc-balance-block">
+        <div class="wc-balance-label">TOTAL BALANCE</div>
+        <div class="wc-balance-val" id="wc-total-balance"><span class="ph-blur">$0,000.00</span></div>
+        <div class="wc-chain-badge">Connected to <span class="wc-chain-name">$TVT</span></div>
+      </div>
+
+      <!-- ── ACTION BUTTONS ── -->
+      <div class="wc-actions">
+        <button class="wc-action-btn" onclick="openConnectWallet()">
+          <span class="wc-action-icon">↑</span>
+          <span>Send</span>
+        </button>
+        <button class="wc-action-btn" onclick="openConnectWallet()">
+          <span class="wc-action-icon">↓</span>
+          <span>Receive</span>
+        </button>
+        <button class="wc-action-btn" onclick="window.location.href='#presale'">
+          <span class="wc-action-icon">⇌</span>
+          <span>Buy</span>
+        </button>
+        <button class="wc-action-btn" onclick="openConnectWallet()">
+          <span class="wc-action-icon">›</span>
+          <span>More</span>
+        </button>
+      </div>
+
+      <!-- ── TOKEN BALANCES ── -->
+      <div class="wc-section-label">TOKEN BALANCES</div>
+
+      <div class="wc-token-row">
+        <div class="wc-token-icon">$T</div>
+        <div class="wc-token-info">
+          <div class="wc-token-name">$TVT</div>
+          <div class="wc-token-sub">Available balance</div>
         </div>
-        <div class="pwc-divider"></div>
-        <div class="pwc-vault-row">
-          <div class="pwc-vault-label">🔒 Vaulted $TVT</div>
-          <div class="phantom-text ph-blur" style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:1px">000,000</div>
-        </div>
-        <div class="pwc-vault-row">
-          <div class="pwc-vault-label">⏳ Unlock Date</div>
-          <div class="phantom-text ph-blur" style="font-size:.9rem;font-weight:700">••/••/••••</div>
-        </div>
-        <div class="pwc-vault-row">
-          <div class="pwc-vault-label">💰 Pending Rewards</div>
-          <div class="phantom-text ph-blur" style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:1px;color:rgba(0,255,136,0.3)">0.000 $TVT</div>
-        </div>
-        <div class="pwc-phantom-hint">
-          <span style="opacity:.45">🔒</span>
-          <span>Connect your wallet to unlock your dashboard</span>
+        <div class="wc-token-amounts">
+          <div class="wc-token-qty" id="tok-available-qty"><span class="ph-blur">——</span></div>
+          <div class="wc-token-usd" id="tok-available-usd"><span class="ph-blur">——</span></div>
         </div>
       </div>
-    </div>
 
-    <!-- Connected state (hidden until wallet connected) -->
-    <div id="wallet-connected-state" style="display:none">
-      <div class="phantom-wallet-card" style="border-color:rgba(0,255,136,0.25);box-shadow:0 0 60px rgba(0,255,136,0.07)">
-        <div class="pwc-top">
-          <div class="pwc-icon">🟢</div>
-          <div>
-            <div class="pwc-label">CONNECTED</div>
-            <div class="pwc-addr" id="wc-addr-display" style="color:var(--green);font-size:.78rem">—</div>
-          </div>
-          <button class="btn-connect-wallet" style="background:rgba(255,80,80,0.08);border-color:rgba(255,80,80,0.2);color:#ff6060" onclick="disconnectWallet()">Disconnect</button>
+      <div class="wc-token-row wc-token-row--staked">
+        <div class="wc-token-icon wc-token-icon--vault">$T</div>
+        <div class="wc-token-info">
+          <div class="wc-token-name">Presale $TVT</div>
+          <div class="wc-token-sub">Locked in vault</div>
+          <div class="wc-token-apy">Earning 12–38% APY</div>
         </div>
-        <div class="pwc-divider"></div>
-        <div class="pwc-stats">
-          <div class="pwc-stat">
-            <div class="pwc-stat-val" style="color:var(--green)" id="wc-tvt-bal">0</div>
-            <div class="pwc-stat-lbl">$TVT BALANCE</div>
-          </div>
-          <div class="pwc-stat">
-            <div class="pwc-stat-val" id="wc-usd-val">$0.00</div>
-            <div class="pwc-stat-lbl">USD VALUE</div>
-          </div>
-          <div class="pwc-stat">
-            <div class="pwc-stat-val" style="color:var(--green)">12–38%</div>
-            <div class="pwc-stat-lbl">STAKING APY</div>
-          </div>
-        </div>
-        <div class="pwc-divider"></div>
-        <div class="pwc-vault-row">
-          <div class="pwc-vault-label">🔒 Vaulted $TVT</div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:1px;color:var(--white)" id="wc-vaulted">0</div>
-        </div>
-        <div class="pwc-vault-row">
-          <div class="pwc-vault-label">⏳ Unlock Date</div>
-          <div style="font-size:.9rem;font-weight:700;color:var(--muted)" id="wc-unlock">TGE + Vault Term</div>
-        </div>
-        <div class="pwc-vault-row">
-          <div class="pwc-vault-label">💰 Pending Rewards</div>
-          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:1px;color:var(--green)" id="wc-rewards">0.000 $TVT</div>
-        </div>
-        <div style="margin-top:1.25rem">
-          <button class="btn-buy" style="font-size:1rem;padding:.75rem" onclick="window.location.href='#presale'">+ BUY MORE $TVT</button>
+        <div class="wc-token-amounts">
+          <div class="wc-token-qty wc-token-qty--green" id="tok-presale-qty"><span class="ph-blur">——</span></div>
+          <div class="wc-token-usd" id="tok-presale-usd"><span class="ph-blur">——</span></div>
         </div>
       </div>
-    </div>
+
+      <!-- ── REWARDS BREAKDOWN ── -->
+      <div class="wc-section-label" style="margin-top:1.25rem">
+        REWARDS BREAKDOWN
+        <span class="wc-rewards-toggle" onclick="toggleRewards()">↓</span>
+      </div>
+
+      <div id="wc-rewards-body">
+        <div class="wc-reward-row">
+          <div class="wc-reward-arrow">↓</div>
+          <div class="wc-reward-info">
+            <div class="wc-reward-period">Presale Round 1</div>
+            <div class="wc-reward-rate">0.1% daily · TGE unlock</div>
+          </div>
+          <div class="wc-reward-amounts">
+            <div class="wc-reward-qty" id="rew-r1-qty"><span class="ph-blur">0 $TVT</span></div>
+            <div class="wc-reward-usd" id="rew-r1-usd"><span class="ph-blur">$0.00</span></div>
+          </div>
+        </div>
+        <div class="wc-reward-row">
+          <div class="wc-reward-arrow">↓</div>
+          <div class="wc-reward-info">
+            <div class="wc-reward-period">Vault Staking (post-TGE)</div>
+            <div class="wc-reward-rate">12–38% APY · time-locked</div>
+          </div>
+          <div class="wc-reward-amounts">
+            <div class="wc-reward-qty" id="rew-r2-qty"><span class="ph-blur">0 $TVT</span></div>
+            <div class="wc-reward-usd" id="rew-r2-usd"><span class="ph-blur">$0.00</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- disconnect link when connected -->
+      <div id="wc-disconnect-wrap" style="display:none;text-align:center;margin-top:1.25rem">
+        <span class="wc-disconnect-link" onclick="disconnectWallet()">Disconnect wallet</span>
+      </div>
+
+    </div><!-- /wc-card -->
   </div>
 </section>
 
@@ -1075,8 +1142,9 @@ async function bmConfirm() {
     // Wallet confirmed — reveal the balance figures and wallet section
     sessionStorage.setItem('tvt_wallet_connected', '1');
     sessionStorage.setItem('tvt_wallet_addr', wallet);
+    sessionStorage.setItem('tvt_wallet_user', username);
     revealBalance();
-    showWalletConnected(wallet);
+    showWalletConnected(wallet, username);
 
     // Success screen
     document.getElementById('bm-step2-icon').textContent  = '⏳';
@@ -1122,44 +1190,107 @@ setInterval(updateCD, 1000);
 
 // ─── MY WALLET SECTION ───────────────────────────────────────────────────────
 function openConnectWallet(){
-  // Reuse the buy modal but scroll to presale first with a hint
   document.getElementById('presale').scrollIntoView({behavior:'smooth',block:'start'});
-  setTimeout(()=>{
-    openBuyModal();
-  }, 600);
+  setTimeout(()=>{ openBuyModal(); }, 600);
+}
+
+function toggleRewards(){
+  const body = document.getElementById('wc-rewards-body');
+  body.style.display = body.style.display === 'none' ? 'block' : 'none';
 }
 
 function disconnectWallet(){
   sessionStorage.removeItem('tvt_wallet_connected');
   sessionStorage.removeItem('tvt_wallet_addr');
-  document.getElementById('wallet-locked-state').style.display  = 'block';
-  document.getElementById('wallet-connected-state').style.display = 'none';
-  // Re-phantom the presale balance row
+  sessionStorage.removeItem('tvt_wallet_user');
+  // Reset header
+  document.getElementById('wc-avatar').textContent = '?';
+  document.getElementById('wc-username').textContent = 'Guest';
+  document.getElementById('wc-addr-display').textContent = 'Not connected';
+  document.getElementById('wc-connect-btn').textContent = 'Connect';
+  document.getElementById('wc-connect-btn').onclick = openConnectWallet;
+  document.getElementById('wc-connect-btn').style.cssText = '';
+  document.getElementById('wc-disconnect-wrap').style.display = 'none';
+  // Reset balance
+  const balEl = document.getElementById('wc-total-balance');
+  balEl.innerHTML = '<span class="ph-blur">$0,000.00</span>';
+  balEl.classList.remove('revealed');
+  // Reset token rows
+  ['tok-available-qty','tok-available-usd','tok-presale-qty','tok-presale-usd'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el){ el.innerHTML='<span class="ph-blur">——</span>'; el.classList.remove('revealed'); }
+  });
+  ['rew-r1-qty','rew-r2-qty'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el){ el.innerHTML='<span class="ph-blur">0 $TVT</span>'; el.classList.remove('revealed'); }
+  });
+  ['rew-r1-usd','rew-r2-usd'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el){ el.innerHTML='<span class="ph-blur">$0.00</span>'; el.classList.remove('revealed'); }
+  });
+  // Re-phantom presale balance row
   const raised  = document.getElementById('presale-raised');
-  const target  = document.getElementById('presale-target');
+  const targ    = document.getElementById('presale-target');
   const overlay = document.getElementById('raised-lock-overlay');
   if(raised){ raised.innerHTML='$<span class="phantom-zeros">000</span>'; raised.classList.add('phantom-val'); raised.classList.remove('revealed'); }
-  if(target){ target.innerHTML='$<span class="phantom-zeros">000</span>'; target.classList.add('phantom-val'); target.classList.remove('revealed'); }
+  if(targ)  { targ.innerHTML  ='$<span class="phantom-zeros">000</span>'; targ.classList.add('phantom-val');   targ.classList.remove('revealed'); }
   if(overlay) overlay.classList.remove('hidden');
 }
 
-function showWalletConnected(addr){
+function showWalletConnected(addr, username){
   const short = addr.slice(0,6)+'…'+addr.slice(-4);
-  document.getElementById('wallet-locked-state').style.display   = 'none';
-  document.getElementById('wallet-connected-state').style.display = 'block';
+  const uname = username || sessionStorage.getItem('tvt_wallet_user') || 'Holder';
+  const initial = uname.charAt(0).toUpperCase();
+
+  // Header
+  document.getElementById('wc-avatar').textContent       = initial;
+  document.getElementById('wc-username').textContent     = uname;
   document.getElementById('wc-addr-display').textContent = short;
-  // Pull any orders from localStorage to show TVT balance
-  const orders = JSON.parse(localStorage.getItem('tvt_orders')||'[]');
+  const btn = document.getElementById('wc-connect-btn');
+  btn.textContent = 'Connected ✓';
+  btn.style.background    = 'rgba(0,255,136,0.08)';
+  btn.style.borderColor   = 'rgba(0,255,136,0.3)';
+  btn.style.color         = 'var(--green)';
+  btn.style.cursor        = 'default';
+  btn.onclick             = null;
+  document.getElementById('wc-disconnect-wrap').style.display = 'block';
+
+  // Pull orders for this wallet
+  const orders   = JSON.parse(localStorage.getItem('tvt_orders')||'[]');
   const myOrders = orders.filter(o => o.wallet && o.wallet.toLowerCase()===addr.toLowerCase());
   const totalTVT = myOrders.reduce((s,o)=>s+(o.tvt||0),0);
-  const usdVal   = (totalTVT * CFG.tvtPrice).toFixed(2);
-  document.getElementById('wc-tvt-bal').textContent = totalTVT.toLocaleString('en-US');
-  document.getElementById('wc-usd-val').textContent = '$'+parseFloat(usdVal).toLocaleString('en-US',{minimumFractionDigits:2});
-  document.getElementById('wc-vaulted').textContent = totalTVT > 0 ? Math.floor(totalTVT*0.6).toLocaleString('en-US') : '0';
-  document.getElementById('wc-rewards').textContent = totalTVT > 0 ? (totalTVT*0.001).toFixed(3)+' $TVT' : '0.000 $TVT';
+  const usdVal   = totalTVT * CFG.tvtPrice;
+  const vaulted  = totalTVT; // presale tokens are locked in vault
+  const r1reward = totalTVT * 0.001; // 0.1% daily illustration
+  const r2reward = totalTVT * 0.02;  // post-TGE staking illustration
+
+  // Total balance
+  const balEl = document.getElementById('wc-total-balance');
+  balEl.textContent = '$'+usdVal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  balEl.classList.add('revealed');
+
+  // Token rows - available (post-TGE, 0 during presale)
+  const aqEl = document.getElementById('tok-available-qty');
+  const auEl = document.getElementById('tok-available-usd');
+  aqEl.textContent = '—'; aqEl.classList.add('revealed');
+  auEl.textContent = '—'; auEl.classList.add('revealed');
+
+  // Token rows - presale locked
+  const pqEl = document.getElementById('tok-presale-qty');
+  const puEl = document.getElementById('tok-presale-usd');
+  pqEl.textContent = totalTVT.toLocaleString('en-US'); pqEl.classList.add('revealed');
+  puEl.textContent = '$'+usdVal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); puEl.classList.add('revealed');
+
+  // Rewards
+  const r1q = document.getElementById('rew-r1-qty'); const r1u = document.getElementById('rew-r1-usd');
+  const r2q = document.getElementById('rew-r2-qty'); const r2u = document.getElementById('rew-r2-usd');
+  r1q.textContent = r1reward.toLocaleString('en-US',{maximumFractionDigits:0})+' $TVT'; r1q.classList.add('revealed');
+  r1u.textContent = '$'+(r1reward*CFG.tvtPrice).toFixed(2); r1u.classList.add('revealed');
+  r2q.textContent = r2reward.toLocaleString('en-US',{maximumFractionDigits:0})+' $TVT'; r2q.classList.add('revealed');
+  r2u.textContent = '$'+(r2reward*CFG.tvtPrice).toFixed(2); r2u.classList.add('revealed');
 }
 
-// Restore connected state on load
+// Restore on page load
 (function restoreWalletState(){
   const addr = sessionStorage.getItem('tvt_wallet_addr');
   if(addr) showWalletConnected(addr);
