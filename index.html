@@ -514,8 +514,9 @@ body{
 .wc-reward-qty.revealed{color:var(--green)}
 .wc-reward-usd{font-size:.7rem;color:rgba(107,143,122,0.35);font-weight:600;transition:color .4s}
 .wc-reward-usd.revealed{color:var(--muted)}
-.ph-blur{filter:blur(5px);user-select:none;display:inline-block;transition:filter .4s ease}
-.revealed .ph-blur,.revealed.ph-blur{filter:none!important;user-select:auto}
+.ph-blur{filter:blur(5px);user-select:none;display:inline-block;transition:filter .35s ease}
+.revealed .ph-blur,.revealed.ph-blur{filter:none!important;user-select:auto!important}
+.wc-balance-val.revealed,.wc-token-qty.revealed,.wc-token-usd.revealed,.wc-reward-qty.revealed,.wc-reward-usd.revealed{filter:none!important}
 .wc-disconnect-link{font-size:.75rem;color:rgba(255,96,96,0.5);font-weight:700;cursor:pointer;letter-spacing:.3px}
 .wc-disconnect-link:hover{color:#ff6060}
 .phantom-val{color:rgba(200,220,210,0.55)!important;text-shadow:0 0 18px rgba(0,255,136,0.12)!important;filter:blur(0.3px);transition:all .5s ease}
@@ -1070,20 +1071,37 @@ function setStatus(msg, color) {
 }
 
 // ─── BUY MODAL STATE ────────────────────────────────────────────────────────
-function openBuyModal() {
+function openBuyModal(connectOnly) {
   const usdt = parseFloat(input?.value) || 0;
-  if (usdt <= 0) { setStatus('⚠️ Enter a USDT amount first.', '#ffc800'); return; }
+  if (!connectOnly && usdt <= 0) { setStatus('⚠️ Enter a USDT amount first.', '#ffc800'); return; }
 
   // reset modal
   document.getElementById('bm-username').value     = '';
   document.getElementById('bm-wallet-input').value = '';
   document.getElementById('bm-wallet-input').style.borderColor = 'rgba(0,255,136,0.15)';
-  document.getElementById('bm-usdt-display').textContent = usdt.toFixed(2) + ' USDT';
-  document.getElementById('bm-tvt-display').textContent  = Math.round(usdt / TVT_PRICE).toLocaleString() + ' $TVT';
-  document.getElementById('bm-err').style.display        = 'none';
-  document.getElementById('bm-step1').style.display      = 'block';
-  document.getElementById('bm-step2').style.display      = 'none';
-  document.getElementById('bm-done-btn').style.display   = 'none';
+  document.getElementById('bm-err').style.display   = 'none';
+  document.getElementById('bm-step1').style.display = 'block';
+  document.getElementById('bm-step2').style.display = 'none';
+  document.getElementById('bm-done-btn').style.display = 'none';
+
+  const amountRow  = document.getElementById('bm-amount-row');
+  const modalTitle = document.getElementById('bm-modal-title');
+  const modalSub   = document.getElementById('bm-modal-sub');
+  const confirmBtn = document.getElementById('bm-confirm-btn');
+
+  if (connectOnly) {
+    if (amountRow)  amountRow.style.display = 'none';
+    if (modalTitle) modalTitle.textContent  = 'CONNECT WALLET';
+    if (modalSub)   modalSub.textContent    = 'Enter your username and wallet address to connect';
+    if (confirmBtn) { confirmBtn.textContent = '🔗 CONNECT WALLET'; confirmBtn.dataset.connectOnly = '1'; }
+  } else {
+    if (amountRow)  amountRow.style.display = 'block';
+    if (modalTitle) modalTitle.textContent  = 'CONFIRM YOUR ORDER';
+    if (modalSub)   modalSub.textContent    = 'Enter your username then connect your wallet';
+    if (confirmBtn) { confirmBtn.textContent = '🔐 CONFIRM & BUY'; delete confirmBtn.dataset.connectOnly; }
+    document.getElementById('bm-usdt-display').textContent = usdt.toFixed(2) + ' USDT';
+    document.getElementById('bm-tvt-display').textContent  = Math.round(usdt / TVT_PRICE).toLocaleString() + ' $TVT';
+  }
 
   document.getElementById('buy-modal-bg').style.display = 'flex';
 }
@@ -1104,15 +1122,28 @@ function bmShowErr(msg) {
 }
 
 async function bmConfirm() {
-  const username = document.getElementById('bm-username').value.trim();
-  const wallet   = document.getElementById('bm-wallet-input').value.trim();
-  const usdt     = parseFloat(input?.value) || 0;
+  const username      = document.getElementById('bm-username').value.trim();
+  const wallet        = document.getElementById('bm-wallet-input').value.trim();
+  const confirmBtn    = document.getElementById('bm-confirm-btn');
+  const isConnectOnly = confirmBtn && confirmBtn.dataset.connectOnly === '1';
+  const usdt          = parseFloat(input?.value) || 0;
 
   document.getElementById('bm-err').style.display = 'none';
 
-  if (!username)                              { bmShowErr('Please enter your username.'); return; }
-  if (!/^0x[0-9a-fA-F]{40}$/.test(wallet))  { bmShowErr('Please enter a valid wallet address (0x…).'); return; }
-  if (usdt <= 0)                              { bmShowErr('Invalid USDT amount.'); return; }
+  if (!username)                             { bmShowErr('Please enter your username.'); return; }
+  if (!/^0x[0-9a-fA-F]{40}$/.test(wallet)) { bmShowErr('Please enter a valid wallet address (0x…).'); return; }
+  if (!isConnectOnly && usdt <= 0)           { bmShowErr('Invalid USDT amount.'); return; }
+
+  // Connect-only mode: just register wallet, no order needed
+  if (isConnectOnly) {
+    sessionStorage.setItem('tvt_wallet_connected', '1');
+    sessionStorage.setItem('tvt_wallet_addr', wallet);
+    sessionStorage.setItem('tvt_wallet_user', username);
+    showWalletConnected(wallet, username);
+    closeBuyModal();
+    setTimeout(() => document.getElementById('my-wallet').scrollIntoView({behavior:'smooth',block:'start'}), 200);
+    return;
+  }
 
   // Switch to processing screen
   document.getElementById('bm-step1').style.display  = 'none';
@@ -1191,8 +1222,7 @@ setInterval(updateCD, 1000);
 
 // ─── MY WALLET SECTION ───────────────────────────────────────────────────────
 function openConnectWallet(){
-  document.getElementById('presale').scrollIntoView({behavior:'smooth',block:'start'});
-  setTimeout(()=>{ openBuyModal(); }, 600);
+  openBuyModal(true);
 }
 
 function toggleRewards(){
@@ -1212,23 +1242,23 @@ function disconnectWallet(){
   document.getElementById('wc-connect-btn').onclick = openConnectWallet;
   document.getElementById('wc-connect-btn').style.cssText = '';
   document.getElementById('wc-disconnect-wrap').style.display = 'none';
-  // Reset balance
-  const balEl = document.getElementById('wc-total-balance');
-  balEl.innerHTML = '<span class="ph-blur">$0,000.00</span>';
-  balEl.classList.remove('revealed');
-  // Reset token rows
-  ['tok-available-qty','tok-available-usd','tok-presale-qty','tok-presale-usd'].forEach(id=>{
+  // Helper: restore blur placeholder
+  function unreveal(id, markup) {
     const el = document.getElementById(id);
-    if(el){ el.innerHTML='<span class="ph-blur">——</span>'; el.classList.remove('revealed'); }
-  });
-  ['rew-r1-qty','rew-r2-qty'].forEach(id=>{
-    const el = document.getElementById(id);
-    if(el){ el.innerHTML='<span class="ph-blur">0 $TVT</span>'; el.classList.remove('revealed'); }
-  });
-  ['rew-r1-usd','rew-r2-usd'].forEach(id=>{
-    const el = document.getElementById(id);
-    if(el){ el.innerHTML='<span class="ph-blur">$0.00</span>'; el.classList.remove('revealed'); }
-  });
+    if (!el) return;
+    el.innerHTML = markup;
+    el.classList.remove('revealed');
+    el.style.filter = '';
+  }
+  unreveal('wc-total-balance', '<span class="ph-blur">$0,000.00</span>');
+  unreveal('tok-available-qty',  '<span class="ph-blur">——</span>');
+  unreveal('tok-available-usd',  '<span class="ph-blur">——</span>');
+  unreveal('tok-presale-qty',    '<span class="ph-blur">——</span>');
+  unreveal('tok-presale-usd',    '<span class="ph-blur">——</span>');
+  unreveal('rew-r1-qty',         '<span class="ph-blur">0 $TVT</span>');
+  unreveal('rew-r2-qty',         '<span class="ph-blur">0 $TVT</span>');
+  unreveal('rew-r1-usd',         '<span class="ph-blur">$0.00</span>');
+  unreveal('rew-r2-usd',         '<span class="ph-blur">$0.00</span>');
   // Re-phantom presale balance row
   const raised  = document.getElementById('presale-raised');
   const targ    = document.getElementById('presale-target');
@@ -1265,30 +1295,25 @@ function showWalletConnected(addr, username){
   const r1reward = totalTVT * 0.001; // 0.1% daily illustration
   const r2reward = totalTVT * 0.02;  // post-TGE staking illustration
 
-  // Total balance
-  const balEl = document.getElementById('wc-total-balance');
-  balEl.textContent = '$'+usdVal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-  balEl.classList.add('revealed');
+  // Helper: wipe ph-blur spans, set plain text, mark revealed
+  function reveal(id, text) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = '';
+    el.textContent = text;
+    el.classList.add('revealed');
+    el.style.filter = 'none';
+  }
 
-  // Token rows - available (post-TGE, 0 during presale)
-  const aqEl = document.getElementById('tok-available-qty');
-  const auEl = document.getElementById('tok-available-usd');
-  aqEl.textContent = '—'; aqEl.classList.add('revealed');
-  auEl.textContent = '—'; auEl.classList.add('revealed');
-
-  // Token rows - presale locked
-  const pqEl = document.getElementById('tok-presale-qty');
-  const puEl = document.getElementById('tok-presale-usd');
-  pqEl.textContent = totalTVT.toLocaleString('en-US'); pqEl.classList.add('revealed');
-  puEl.textContent = '$'+usdVal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); puEl.classList.add('revealed');
-
-  // Rewards
-  const r1q = document.getElementById('rew-r1-qty'); const r1u = document.getElementById('rew-r1-usd');
-  const r2q = document.getElementById('rew-r2-qty'); const r2u = document.getElementById('rew-r2-usd');
-  r1q.textContent = r1reward.toLocaleString('en-US',{maximumFractionDigits:0})+' $TVT'; r1q.classList.add('revealed');
-  r1u.textContent = '$'+(r1reward*CFG.tvtPrice).toFixed(2); r1u.classList.add('revealed');
-  r2q.textContent = r2reward.toLocaleString('en-US',{maximumFractionDigits:0})+' $TVT'; r2q.classList.add('revealed');
-  r2u.textContent = '$'+(r2reward*CFG.tvtPrice).toFixed(2); r2u.classList.add('revealed');
+  reveal('wc-total-balance', '$' + usdVal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}));
+  reveal('tok-available-qty', '—');
+  reveal('tok-available-usd', '—');
+  reveal('tok-presale-qty',  totalTVT.toLocaleString('en-US'));
+  reveal('tok-presale-usd',  '$' + usdVal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}));
+  reveal('rew-r1-qty', r1reward.toLocaleString('en-US',{maximumFractionDigits:0}) + ' $TVT');
+  reveal('rew-r1-usd', '$' + (r1reward * CFG.tvtPrice).toFixed(2));
+  reveal('rew-r2-qty', r2reward.toLocaleString('en-US',{maximumFractionDigits:0}) + ' $TVT');
+  reveal('rew-r2-usd', '$' + (r2reward * CFG.tvtPrice).toFixed(2));
 }
 
 // Restore on page load
@@ -1318,8 +1343,8 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
   ">
     <!-- Step 1: username + connect -->
     <div id="bm-step1">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;color:#00ff88;margin-bottom:.25rem">CONFIRM YOUR ORDER</div>
-      <div style="font-size:.78rem;color:#6b8f7a;font-weight:600;margin-bottom:1.5rem;letter-spacing:.4px">Enter your username then connect your wallet</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;color:#00ff88;margin-bottom:.25rem" id="bm-modal-title">CONFIRM YOUR ORDER</div>
+      <div id="bm-modal-sub" style="font-size:.78rem;color:#6b8f7a;font-weight:600;margin-bottom:1.5rem;letter-spacing:.4px">Enter your username then connect your wallet</div>
 
       <div style="font-size:.7rem;font-weight:800;letter-spacing:1px;color:#6b8f7a;text-transform:uppercase;margin-bottom:.4rem">Username</div>
       <input id="bm-username" type="text" placeholder="your_username" autocomplete="off" style="
@@ -1335,7 +1360,7 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
         font-family:monospace;outline:none;margin-bottom:1.25rem;
       " oninput="bmValidateWallet(this)"/>
 
-      <div style="background:rgba(0,255,136,0.04);border:1px solid rgba(0,255,136,0.1);border-radius:10px;padding:.85rem 1rem;margin-bottom:1.25rem">
+      <div id="bm-amount-row" style="background:rgba(0,255,136,0.04);border:1px solid rgba(0,255,136,0.1);border-radius:10px;padding:.85rem 1rem;margin-bottom:1.25rem">
         <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:.35rem">
           <span style="color:#6b8f7a;font-weight:600">You pay</span>
           <span style="color:#e8f5ee;font-weight:800" id="bm-usdt-display">— USDT</span>
