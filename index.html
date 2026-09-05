@@ -514,7 +514,8 @@ body{
 .wc-reward-qty.revealed{color:var(--green)}
 .wc-reward-usd{font-size:.7rem;color:rgba(107,143,122,0.35);font-weight:600;transition:color .4s}
 .wc-reward-usd.revealed{color:var(--muted)}
-.ph-blur{filter:blur(5px);user-select:none;display:inline-block}
+.ph-blur{filter:blur(5px);user-select:none;display:inline-block;transition:filter .4s ease}
+.revealed .ph-blur,.revealed.ph-blur{filter:none!important;user-select:auto}
 .wc-disconnect-link{font-size:.75rem;color:rgba(255,96,96,0.5);font-weight:700;cursor:pointer;letter-spacing:.3px}
 .wc-disconnect-link:hover{color:#ff6060}
 .phantom-val{color:rgba(200,220,210,0.55)!important;text-shadow:0 0 18px rgba(0,255,136,0.12)!important;filter:blur(0.3px);transition:all .5s ease}
