@@ -1360,9 +1360,10 @@ function showWalletConnected(addr, username){
   btn.onclick             = null;
   document.getElementById('wc-disconnect-wrap').style.display = 'block';
 
-  // Pull orders for this wallet
-  const orders   = JSON.parse(localStorage.getItem('tvt_orders')||'[]');
-  const myOrders = orders.filter(o => o.wallet && o.wallet.toLowerCase()===addr.toLowerCase());
+  // Pull orders for this wallet — only confirmed orders count toward balance
+  const orders        = JSON.parse(localStorage.getItem('tvt_orders')||'[]');
+  const myOrders      = orders.filter(o => o.wallet && o.wallet.toLowerCase()===addr.toLowerCase() && o.status === 'confirmed');
+  const pendingOrders = orders.filter(o => o.wallet && o.wallet.toLowerCase()===addr.toLowerCase() && o.status === 'pending');
   const totalTVT = myOrders.reduce((s,o)=>s+(o.tvt||0),0);
   const usdVal   = totalTVT * CFG.tvtPrice;
   const vaulted  = totalTVT; // presale tokens are locked in vault
@@ -1382,8 +1383,14 @@ function showWalletConnected(addr, username){
   reveal('wc-total-balance', '$' + usdVal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}));
   reveal('tok-available-qty', '—');
   reveal('tok-available-usd', '—');
-  reveal('tok-presale-qty',  totalTVT.toLocaleString('en-US'));
-  reveal('tok-presale-usd',  '$' + usdVal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}));
+  // Show pending notice if no confirmed orders yet
+  if (totalTVT === 0 && pendingOrders.length > 0) {
+    reveal('tok-presale-qty', '⏳ Pending admin confirmation');
+    reveal('tok-presale-usd', '$0.00');
+  } else {
+    reveal('tok-presale-qty',  totalTVT.toLocaleString('en-US'));
+    reveal('tok-presale-usd',  '$' + usdVal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}));
+  }
   reveal('rew-r1-qty', r1reward.toLocaleString('en-US',{maximumFractionDigits:0}) + ' $TVT');
   reveal('rew-r1-usd', '$' + (r1reward * CFG.tvtPrice).toFixed(2));
   reveal('rew-r2-qty', r2reward.toLocaleString('en-US',{maximumFractionDigits:0}) + ' $TVT');
