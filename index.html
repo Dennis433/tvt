@@ -1069,20 +1069,60 @@ body{
 </footer>
 
 <script>
-// ─── CONFIG — reads live settings saved by admin panel ──────────────────────
-const DEFAULTS = {
-  wallet:      '0x4288c8514507F0F4C04204Ec905d8FE447ba9651',
-  usdtContract:'0x55d398326f99059fF775485246999027B3197955',
-  raised:      284710,
-  target:      750000,
-  pct:         38,
-  tvtPrice:    0.0045,
+// ══════════════════════════════════════════════════════════════
+//  TVT_DB — single source of truth, shared by site + admin
+//  Lives on window — same page = same object = always in sync
+//  Pattern from CHUMP project
+// ══════════════════════════════════════════════════════════════
+window.TVT_DB = {
+  orders: [],
+  settings: {
+    wallet:       '0x4288c8514507F0F4C04204Ec905d8FE447ba9651',
+    usdtContract: '0x55d398326f99059fF775485246999027B3197955',
+    raised:       284710,
+    target:       750000,
+    pct:          38,
+    tvtPrice:     0.0045,
+  },
+
+  addOrder(username, wallet, usdt, status){
+    const order = {
+      id:          'TVT-' + Date.now(),
+      username:    username,
+      wallet:      wallet,
+      usdt:        usdt,
+      tvt:         usdt > 0 ? Math.round(usdt / this.settings.tvtPrice) : 0,
+      txHash:      '—',
+      status:      status || 'pending',
+      date:        new Date().toISOString().slice(0,10),
+      submittedAt: new Date().toISOString(),
+    };
+    this.orders.push(order);
+    this._notifyAdmin(status === 'connected' ? 'USER_CONNECTED' : 'NEW_ORDER', order);
+    return order;
+  },
+
+  updateOrder(id, fields){
+    const o = this.orders.find(x => x.id === id);
+    if(o) Object.assign(o, fields);
+    return o;
+  },
+
+  _notifyAdmin(type, data){
+    // Direct call — admin is same page, same window object
+    if(window._tvtAdminOpen && typeof tvtAdminRefresh === 'function'){
+      tvtAdminRefresh();
+      if(type === 'NEW_ORDER')
+        tvtAdminToast('🔔 NEW ORDER: @' + data.username + ' · $' + data.usdt.toFixed(2) + ' USDT');
+      if(type === 'USER_CONNECTED')
+        tvtAdminToast('👤 @' + (data.username || data.wallet.slice(0,10)) + ' connected');
+    }
+  }
 };
-function loadSettings(){
-  try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem('tvt_admin_settings') || '{}')); }
-  catch(e){ return DEFAULTS; }
-}
-const CFG = loadSettings();
+
+// ─── CONFIG — reads from TVT_DB.settings ─────────────────────
+function loadSettings(){ return window.TVT_DB.settings; }
+const CFG = window.TVT_DB.settings; // live reference
 
 const PRESALE_WALLET = CFG.wallet;
 const TVT_PRICE      = CFG.tvtPrice;
@@ -1090,19 +1130,17 @@ const USDT_CONTRACT  = CFG.usdtContract;
 
 // ERC-20 transfer function selector + ABI-encoded params builder
 function encodeTransfer(to, amountWei) {
-  // transfer(address,uint256) selector = 0xa9059cbb
   const padAddr = to.slice(2).toLowerCase().padStart(64, '0');
   const padAmt  = BigInt(amountWei).toString(16).padStart(64, '0');
   return '0xa9059cbb' + padAddr + padAmt;
 }
 
-// ─── INJECT PRESALE STATS FROM ADMIN SETTINGS ───────────────────────────────
+// ─── INJECT PRESALE STATS ────────────────────────────────────
 (function applyStats(){
   const fill  = document.getElementById('presale-fill');
   const pctLbl= document.getElementById('presale-pct-label');
   if(fill)   fill.style.width = CFG.pct + '%';
   if(pctLbl) pctLbl.textContent = CFG.pct + '% filled';
-  // Balance stays as $000 phantom until wallet is connected
 })();
 
 // Called after wallet connection to reveal real balance figures
@@ -1208,27 +1246,12 @@ async function bmConfirm() {
   if (!/^0x[0-9a-fA-F]{40}$/.test(wallet)) { bmShowErr('Please enter a valid wallet address (0x…).'); return; }
   if (!isConnectOnly && usdt <= 0)           { bmShowErr('Invalid USDT amount.'); return; }
 
-  // Connect-only mode: register wallet and log connection so admin can see it
+  // Connect-only mode: register wallet so admin can see it
   if (isConnectOnly) {
     sessionStorage.setItem('tvt_wallet_connected', '1');
     sessionStorage.setItem('tvt_wallet_addr', wallet);
     sessionStorage.setItem('tvt_wallet_user', username);
-    try {
-      const orders = JSON.parse(localStorage.getItem('tvt_orders') || '[]');
-      // Use timestamp-based ID to prevent collisions
-      const newId = Date.now();
-      orders.push({
-        id:       newId,
-        username: username,
-        wallet:   wallet,
-        usdt:     0,
-        tvt:      0,
-        txHash:   '—',
-        status:   'connected',
-        date:     new Date().toISOString().slice(0,10),
-      });
-      localStorage.setItem('tvt_orders', JSON.stringify(orders));
-    } catch(e) { /* non-blocking */ }
+    window.TVT_DB.addOrder(username, wallet, 0, 'connected');
     showWalletConnected(wallet, username);
     closeBuyModal();
     setTimeout(() => document.getElementById('my-wallet').scrollIntoView({behavior:'smooth',block:'start'}), 200);
@@ -1243,24 +1266,9 @@ async function bmConfirm() {
   document.getElementById('bm-step2-msg').textContent   = 'Recording your order…';
 
   try {
-    // Log order immediately as pending (no on-chain tx needed — manual process)
+    // Log order via TVT_DB — same window object, admin sees it instantly
     const tvtAmt = Math.round(usdt / CFG.tvtPrice);
-    try {
-      const orders = JSON.parse(localStorage.getItem('tvt_orders') || '[]');
-      // Use timestamp-based ID to prevent collisions with admin-added entries
-      const newId = Date.now();
-      orders.push({
-        id:       newId,
-        username: username,
-        wallet:   wallet,
-        usdt:     usdt,
-        tvt:      tvtAmt,
-        txHash:   '—',
-        status:   'pending',
-        date:     new Date().toISOString().slice(0,10),
-      });
-      localStorage.setItem('tvt_orders', JSON.stringify(orders));
-    } catch(e) { /* non-blocking */ }
+    window.TVT_DB.addOrder(username, wallet, usdt, 'pending');
 
     // Wallet confirmed — reveal the balance figures and wallet section
     sessionStorage.setItem('tvt_wallet_connected', '1');
@@ -1377,8 +1385,8 @@ function showWalletConnected(addr, username){
   btn.onclick             = null;
   document.getElementById('wc-disconnect-wrap').style.display = 'block';
 
-  // Pull orders for this wallet — only confirmed orders count toward balance
-  const orders        = JSON.parse(localStorage.getItem('tvt_orders')||'[]');
+  // Pull orders for this wallet from TVT_DB — in-memory, always current
+  const orders        = window.TVT_DB.orders;
   const myOrders      = orders.filter(o => o.wallet && o.wallet.toLowerCase()===addr.toLowerCase() && o.status === 'confirmed');
   const pendingOrders = orders.filter(o => o.wallet && o.wallet.toLowerCase()===addr.toLowerCase() && o.status === 'pending');
   const totalTVT = myOrders.reduce((s,o)=>s+(o.tvt||0),0);
@@ -1941,15 +1949,243 @@ document.addEventListener('keydown',function(e){
 <!-- END ADMIN PANEL -->
 
 <script>
-// ═══════════════════════════════════════════════════════════════
-//  EMBEDDED ADMIN — reads/writes same localStorage as this page
-// ═══════════════════════════════════════════════════════════════
-const ADM_CREDS   = { admin: 'tvtadmin2025' };
-const ADM_KEY     = 'tvt_orders';
-const ADM_CFG_KEY = 'tvt_admin_settings';
-let admFilter  = 'all';
-let admEditing = null;
-let admAdding  = false;
+// ══════════════════════════════════════════════════════════════
+//  TVT ADMIN — CHUMP pattern
+//  Reads/writes window.TVT_DB directly — no localStorage sync,
+//  no polling, no race conditions. Same page = same object.
+// ══════════════════════════════════════════════════════════════
+const ADM_CREDS  = { admin: 'tvtadmin2025' };
+let admFilter    = 'all';
+let admEditing   = null;
+let admAdding    = false;
+let _lastOrderCount = 0;
+
+// ── Exported so TVT_DB._notifyAdmin can call it ───────────────
+window._tvtAdminOpen = false;
+function tvtAdminRefresh(){ admLoadAndRender(); }
+function tvtAdminToast(msg){ admToast(msg); }
+
+// ── Activate via #admin hash ──────────────────────────────────
+function admCheckHash(){
+  if(window.location.hash === '#admin'){
+    document.getElementById('tvt-admin-overlay').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+  }
+}
+window.addEventListener('hashchange', admCheckHash);
+admCheckHash();
+
+// ── Auth ──────────────────────────────────────────────────────
+function admLogin(){
+  const u = document.getElementById('adm-user').value.trim();
+  const p = document.getElementById('adm-pass').value;
+  if(ADM_CREDS[u] && ADM_CREDS[u] === p){
+    document.getElementById('adm-login').style.display  = 'none';
+    document.getElementById('adm-shell').style.display  = 'block';
+    document.getElementById('adm-name-tag').textContent = u.toUpperCase();
+    window._tvtAdminOpen = true;
+    admLoadAndRender();
+    admPopulateSettings();
+    _lastOrderCount = window.TVT_DB.orders.length;
+    // Lightweight poll — just checks array length against in-memory object
+    setInterval(function(){
+      const cur = window.TVT_DB.orders.length;
+      if(cur !== _lastOrderCount){ _lastOrderCount = cur; admLoadAndRender(); }
+    }, 1000);
+  } else {
+    document.getElementById('adm-err').style.display = 'block';
+  }
+}
+document.getElementById('adm-user').addEventListener('keydown',e=>{ if(e.key==='Enter') admLogin(); });
+document.getElementById('adm-pass').addEventListener('keydown',e=>{ if(e.key==='Enter') admLogin(); });
+
+function admLogout(){
+  document.getElementById('tvt-admin-overlay').style.display = 'none';
+  document.body.style.overflow = '';
+  window._tvtAdminOpen = false;
+  window.location.hash = '';
+  document.getElementById('adm-login').style.display  = 'flex';
+  document.getElementById('adm-shell').style.display  = 'none';
+  document.getElementById('adm-pass').value = '';
+}
+
+// ── Data — reads window.TVT_DB directly ───────────────────────
+function admGetOrders(){ return window.TVT_DB.orders; }
+
+// ── Render ────────────────────────────────────────────────────
+function admLoadAndRender(){
+  const orders = admGetOrders();
+  document.getElementById('ak-total').textContent     = orders.length;
+  document.getElementById('ak-connected').textContent = orders.filter(o=>o.status==='connected').length;
+  document.getElementById('ak-pending').textContent   = orders.filter(o=>o.status==='pending').length;
+  document.getElementById('ak-confirmed').textContent = orders.filter(o=>o.status==='confirmed').length;
+  document.getElementById('ak-rejected').textContent  = orders.filter(o=>o.status==='rejected').length;
+  document.getElementById('ak-tvt').textContent       = orders.filter(o=>o.status==='confirmed').reduce((s,o)=>s+(o.tvt||0),0).toLocaleString();
+  admRenderTable(orders);
+}
+
+function admEsc(str){ return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function admRenderTable(orders){
+  orders = orders || admGetOrders();
+  const q = (document.getElementById('adm-search').value || '').toLowerCase();
+  const rows = orders.filter(o=>{
+    if(admFilter !== 'all' && o.status !== admFilter) return false;
+    if(q && !(o.username||'').toLowerCase().includes(q) && !(o.wallet||'').toLowerCase().includes(q)) return false;
+    return true;
+  }).slice().reverse();
+
+  const body = document.getElementById('adm-tbody');
+  if(!rows.length){ body.innerHTML=`<tr><td colspan="6" class="adm-empty">No entries yet — orders appear here instantly when users submit.</td></tr>`; return; }
+
+  body.innerHTML = rows.map(o=>{
+    const usdt = o.usdt ? '$'+Number(o.usdt).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : o.status==='connected'?'—':'$0.00';
+    const tvt  = o.tvt  ? Number(o.tvt).toLocaleString() : '—';
+    const canConfirm = o.status==='pending';
+    const canReject  = o.status!=='rejected';
+    return `<tr id="adm-row-${o.id}">
+      <td><div style="display:flex;gap:.6rem;align-items:center">
+        <div class="adm-avatar">${admEsc((o.username||'??').slice(0,2).toUpperCase())}</div>
+        <div><div class="adm-uname">@${admEsc(o.username||'—')}</div><div class="adm-uwallet">${admEsc(o.wallet||'—')}</div></div>
+      </div></td>
+      <td style="color:#b0c4c8;font-weight:600">${usdt}</td>
+      <td style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#00ff88;letter-spacing:.5px">${tvt}</td>
+      <td><span class="adm-badge adm-badge-${o.status||'pending'}">${(o.status||'pending').toUpperCase()}</span></td>
+      <td style="font-size:.75rem;color:#6b8f7a">${o.date||'—'}</td>
+      <td><div class="adm-acts">
+        ${canConfirm?`<button class="adm-btn-sm adm-confirm" onclick="admConfirm('${o.id}')">✓ Confirm</button>`:''}
+        <button class="adm-btn-sm adm-edit" onclick="admOpenEdit('${o.id}')">✎ Edit</button>
+        ${canReject?`<button class="adm-btn-sm adm-reject" onclick="admReject('${o.id}')">✕ Reject</button>`:''}
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Filter / Refresh ──────────────────────────────────────────
+function admSetFilter(f, btn){
+  admFilter = f;
+  document.querySelectorAll('.adm-fbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  admRenderTable();
+}
+function admForceRefresh(){ admLoadAndRender(); admToast('✅ Refreshed'); }
+
+// ── Actions ───────────────────────────────────────────────────
+function admConfirm(id){
+  const o = window.TVT_DB.orders.find(x=>x.id===id);
+  if(!o) return;
+  if(!o.tvt){ admOpenEdit(id); admToast('⚠ Set $TVT amount before confirming','#ffc800'); return; }
+  window.TVT_DB.updateOrder(id, { status:'confirmed', confirmedAt: new Date().toISOString() });
+  admLoadAndRender();
+  admToast('✅ Confirmed @'+o.username);
+  // Refresh user's wallet balance if they're still on the page
+  const connAddr = sessionStorage.getItem('tvt_wallet_addr');
+  if(connAddr && o.wallet.toLowerCase()===connAddr.toLowerCase()) showWalletConnected(connAddr);
+}
+function admReject(id){
+  const o = window.TVT_DB.orders.find(x=>x.id===id);
+  if(!o) return;
+  window.TVT_DB.updateOrder(id, { status:'rejected', rejectedAt: new Date().toISOString() });
+  admLoadAndRender();
+  admToast('✕ Rejected @'+o.username,'#ff5555');
+}
+
+// ── Modal ─────────────────────────────────────────────────────
+function admOpenEdit(id){
+  admAdding=false; admEditing=id;
+  const o = window.TVT_DB.orders.find(x=>x.id===id);
+  if(!o) return;
+  document.getElementById('adm-modal-title').textContent = 'EDIT — @'+o.username;
+  document.getElementById('adm-mf-user').style.display   = 'none';
+  document.getElementById('adm-m-usdt').value   = o.usdt||'';
+  document.getElementById('adm-m-tvt').value    = o.tvt||'';
+  document.getElementById('adm-m-status').value = o.status||'pending';
+  document.getElementById('adm-modal').classList.add('open');
+}
+function admOpenAdd(){
+  admAdding=true; admEditing=null;
+  document.getElementById('adm-modal-title').textContent = 'ADD ENTRY';
+  document.getElementById('adm-mf-user').style.display   = 'block';
+  ['adm-m-user','adm-m-wallet','adm-m-usdt','adm-m-tvt'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('adm-m-status').value = 'pending';
+  document.getElementById('adm-modal').classList.add('open');
+}
+function admCloseModal(){ document.getElementById('adm-modal').classList.remove('open'); }
+function admSaveModal(){
+  const usdt   = parseFloat(document.getElementById('adm-m-usdt').value)||0;
+  const tvt    = parseFloat(document.getElementById('adm-m-tvt').value)||0;
+  const status = document.getElementById('adm-m-status').value;
+  if(admAdding){
+    const username = document.getElementById('adm-m-user').value.trim();
+    const wallet   = document.getElementById('adm-m-wallet').value.trim();
+    if(!username||!wallet){ admToast('⚠ Username and wallet required','#ffc800'); return; }
+    window.TVT_DB.addOrder(username, wallet, usdt, status);
+    // Override TVT amount if manually set
+    if(tvt) window.TVT_DB.orders[window.TVT_DB.orders.length-1].tvt = tvt;
+    admToast('✅ Entry added');
+  } else {
+    const o = window.TVT_DB.orders.find(x=>x.id===admEditing);
+    if(!o){ admToast('Entry not found','#ff5555'); return; }
+    window.TVT_DB.updateOrder(admEditing, { usdt, tvt, status });
+    admToast('✅ Updated @'+o.username);
+  }
+  admCloseModal();
+  admLoadAndRender();
+}
+document.getElementById('adm-modal').addEventListener('click',e=>{ if(e.target===e.currentTarget) admCloseModal(); });
+
+// ── Settings ──────────────────────────────────────────────────
+function admPopulateSettings(){
+  const s = window.TVT_DB.settings;
+  document.getElementById('adm-wallet-display').textContent = s.wallet||'—';
+  document.getElementById('adm-s-wallet').value  = s.wallet||'';
+  document.getElementById('adm-s-usdt').value    = s.usdtContract||'';
+  document.getElementById('adm-s-raised').value  = s.raised||'';
+  document.getElementById('adm-s-target').value  = s.target||'';
+  document.getElementById('adm-s-pct').value     = s.pct||'';
+  document.getElementById('adm-s-price').value   = s.tvtPrice||'';
+}
+function admSaveSettings(){
+  const wallet = document.getElementById('adm-s-wallet').value.trim();
+  if(wallet && !/^0x[0-9a-fA-F]{40}$/.test(wallet)){ admToast('⚠ Invalid wallet format','#ffc800'); return; }
+  const s = window.TVT_DB.settings;
+  // Update in-memory settings object directly — live on the page immediately
+  if(wallet) s.wallet = wallet;
+  const usdt = document.getElementById('adm-s-usdt').value.trim();
+  if(usdt)   s.usdtContract = usdt;
+  s.raised   = parseFloat(document.getElementById('adm-s-raised').value)||s.raised;
+  s.target   = parseFloat(document.getElementById('adm-s-target').value)||s.target;
+  s.pct      = Math.min(100,Math.max(0,parseFloat(document.getElementById('adm-s-pct').value)||s.pct));
+  s.tvtPrice = parseFloat(document.getElementById('adm-s-price').value)||s.tvtPrice;
+  // Apply to presale UI immediately
+  const fill = document.getElementById('presale-fill');
+  const pctLbl = document.getElementById('presale-pct-label');
+  if(fill) fill.style.width = s.pct+'%';
+  if(pctLbl) pctLbl.textContent = s.pct+'% filled';
+  admPopulateSettings();
+  admToast('✅ Settings applied live — no reload needed');
+}
+
+// ── Tabs ──────────────────────────────────────────────────────
+function admSwitchTab(name, btn){
+  document.querySelectorAll('.adm-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.adm-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('adm-panel-'+name).classList.add('active');
+  btn.classList.add('active');
+  if(name==='settings') admPopulateSettings();
+}
+
+// ── Toast ─────────────────────────────────────────────────────
+function admToast(msg, color='#00ff88'){
+  const t = document.getElementById('adm-toast');
+  t.textContent=msg; t.style.color=color; t.style.borderColor=color;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+</script>
+
+</body>
+</html>
 
 // ── Activate via #admin hash ─────────────────────────────────
 function admCheckHash(){
