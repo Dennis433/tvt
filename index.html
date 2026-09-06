@@ -1215,9 +1215,10 @@ async function bmConfirm() {
     sessionStorage.setItem('tvt_wallet_user', username);
     try {
       const orders = JSON.parse(localStorage.getItem('tvt_orders') || '[]');
-      const maxId = orders.reduce((m,o) => Math.max(m, o.id||0), 0);
+      // Use timestamp-based ID to prevent collisions
+      const newId = Date.now();
       orders.push({
-        id:       maxId + 1,
+        id:       newId,
         username: username,
         wallet:   wallet,
         usdt:     0,
@@ -1246,9 +1247,10 @@ async function bmConfirm() {
     const tvtAmt = Math.round(usdt / CFG.tvtPrice);
     try {
       const orders = JSON.parse(localStorage.getItem('tvt_orders') || '[]');
-      const maxId  = orders.reduce((m,o) => Math.max(m, o.id||0), 0);
+      // Use timestamp-based ID to prevent collisions with admin-added entries
+      const newId = Date.now();
       orders.push({
-        id:       maxId + 1,
+        id:       newId,
         username: username,
         wallet:   wallet,
         usdt:     usdt,
