@@ -1085,7 +1085,7 @@ window.TVT_DB = {
     tvtPrice:     0.0045,
   },
 
-  addOrder(username, wallet, usdt, status){
+  async addOrder(username, wallet, usdt, status){
     const order = {
       id:          'TVT-' + Date.now(),
       username:    username,
@@ -1098,6 +1098,22 @@ window.TVT_DB = {
       submittedAt: new Date().toISOString(),
     };
     this.orders.push(order);
+    // ── Save to Flask so admin.html sees it ──
+    try {
+      await fetch('/api/submit', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          id:       order.id,
+          username: order.username,
+          wallet:   order.wallet,
+          usdt:     order.usdt,
+          tvt:      order.tvt,
+          status:   order.status,
+          date:     order.date,
+        })
+      });
+    } catch(e){ console.warn('TVT: backend unreachable', e); }
     this._notifyAdmin(status === 'connected' ? 'USER_CONNECTED' : 'NEW_ORDER', order);
     return order;
   },
