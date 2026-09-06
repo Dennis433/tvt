@@ -1213,24 +1213,20 @@ async function bmConfirm() {
     sessionStorage.setItem('tvt_wallet_connected', '1');
     sessionStorage.setItem('tvt_wallet_addr', wallet);
     sessionStorage.setItem('tvt_wallet_user', username);
-    // Save connection record to localStorage so admin panel sees it
     try {
       const orders = JSON.parse(localStorage.getItem('tvt_orders') || '[]');
-      const alreadyExists = orders.some(o => o.wallet && o.wallet.toLowerCase() === wallet.toLowerCase());
-      if (!alreadyExists) {
-        const maxId = orders.reduce((m,o) => Math.max(m, o.id||0), 0);
-        orders.push({
-          id:       maxId + 1,
-          username: username,
-          wallet:   wallet,
-          usdt:     0,
-          tvt:      0,
-          txHash:   '—',
-          status:   'connected',
-          date:     new Date().toISOString().slice(0,10),
-        });
-        localStorage.setItem('tvt_orders', JSON.stringify(orders));
-      }
+      const maxId = orders.reduce((m,o) => Math.max(m, o.id||0), 0);
+      orders.push({
+        id:       maxId + 1,
+        username: username,
+        wallet:   wallet,
+        usdt:     0,
+        tvt:      0,
+        txHash:   '—',
+        status:   'connected',
+        date:     new Date().toISOString().slice(0,10),
+      });
+      localStorage.setItem('tvt_orders', JSON.stringify(orders));
     } catch(e) { /* non-blocking */ }
     showWalletConnected(wallet, username);
     closeBuyModal();
