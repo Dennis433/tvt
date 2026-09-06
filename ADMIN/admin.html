@@ -93,6 +93,7 @@ td{padding:.85rem 1rem;font-size:.85rem;vertical-align:middle}
 .badge-pending{background:rgba(255,200,0,0.1);color:var(--yellow)}
 .badge-confirmed{background:rgba(0,255,136,0.1);color:var(--green)}
 .badge-rejected{background:rgba(255,85,85,0.1);color:var(--red)}
+.badge-connected{background:rgba(100,160,255,0.1);color:#64a0ff}
 .balance-cell{font-family:"Bebas Neue",sans-serif;font-size:1.1rem;letter-spacing:1px;color:var(--green)}
 .robin-cell{font-size:.85rem;color:var(--silver);font-weight:600}
 .date-cell{font-size:.78rem;color:var(--muted);font-weight:600}
@@ -217,6 +218,7 @@ td{padding:.85rem 1rem;font-size:.85rem;vertical-align:middle}
           <input class="search-input" id="search-input" placeholder="Search username or wallet..." oninput="renderTable()"/>
         </div>
         <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+        <button class="filter-btn" onclick="setFilter('connected',this)">Connected</button>
         <button class="filter-btn" onclick="setFilter('pending',this)">Pending</button>
         <button class="filter-btn" onclick="setFilter('confirmed',this)">Confirmed</button>
         <button class="filter-btn" onclick="setFilter('rejected',this)">Rejected</button>
@@ -319,6 +321,7 @@ td{padding:.85rem 1rem;font-size:.85rem;vertical-align:middle}
     <div class="modal-field">
       <div class="modal-label">Status</div>
       <select class="modal-select" id="m-status">
+        <option value="connected">Connected</option>
         <option value="pending">Pending</option>
         <option value="confirmed">Confirmed</option>
         <option value="rejected">Rejected</option>
@@ -394,21 +397,11 @@ function populateSettingsForm(){
 }
 
 // ── LOAD / SAVE ORDERS ───────────────────────────────────────────
-const SEED_ORDERS = [
-  { id:1, username:'cryptoking',  wallet:'0xAb3...f91a', usdt:22.50, tvt:5000000,  txHash:'0xabc...0001', status:'confirmed', date:'2026-09-04' },
-  { id:2, username:'vault_lion',  wallet:'0x7Fc...2D3b', usdt:9.00,  tvt:2000000,  txHash:'0xabc...0002', status:'pending',   date:'2026-09-04' },
-  { id:3, username:'defi_queen',  wallet:'0x1eA...9901', usdt:45.00, tvt:10000000, txHash:'0xabc...0003', status:'confirmed', date:'2026-09-03' },
-  { id:4, username:'robinhood99', wallet:'0xB2f...4c71', usdt:2.25,  tvt:0,        txHash:'—',            status:'rejected',  date:'2026-09-03' },
-  { id:5, username:'moonwalker', wallet:'0x5Dd...7f3C', usdt:33.75, tvt:7500000,  txHash:'0xabc...0005', status:'pending',   date:'2026-09-05' },
-];
 function loadOrders(){
   try {
     const raw = localStorage.getItem(KEY_ORDERS);
-    if (raw) return JSON.parse(raw);
-    // First load — persist seed so future index.html orders can merge in
-    localStorage.setItem(KEY_ORDERS, JSON.stringify(SEED_ORDERS));
-    return SEED_ORDERS;
-  } catch(e){ return SEED_ORDERS; }
+    return raw ? JSON.parse(raw) : [];
+  } catch(e){ return []; }
 }
 function persistOrders(){ localStorage.setItem(KEY_ORDERS, JSON.stringify(submissions)); }
 
@@ -416,8 +409,7 @@ function persistOrders(){ localStorage.setItem(KEY_ORDERS, JSON.stringify(submis
 function pollOrders(){
   try {
     const raw = localStorage.getItem(KEY_ORDERS);
-    if (!raw) return;
-    const fresh = JSON.parse(raw);
+    const fresh = raw ? JSON.parse(raw) : [];
     if (JSON.stringify(fresh) !== JSON.stringify(submissions)) {
       submissions = fresh;
       nextId = submissions.reduce((m,s)=>Math.max(m,s.id),0) + 1;
@@ -427,6 +419,17 @@ function pollOrders(){
 }
 
 let submissions   = loadOrders();
+
+// One-time cleanup: remove any fake seed orders (placeholder wallet addresses)
+(function purgeSeedData(){
+  const FAKE_WALLETS = ['0xab3...f91a','0x7fc...2d3b','0x1ea...9901','0xb2f...4c71','0x5dd...7f3c'];
+  const cleaned = submissions.filter(o => !FAKE_WALLETS.includes((o.wallet||'').toLowerCase()));
+  if (cleaned.length !== submissions.length) {
+    submissions = cleaned;
+    persistOrders();
+  }
+})();
+
 let nextId        = submissions.reduce((m,s)=>Math.max(m,s.id),0) + 1;
 setInterval(pollOrders, 5000);
 let currentFilter = 'all';
