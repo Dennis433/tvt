@@ -404,13 +404,31 @@ const SEED_ORDERS = [
 function loadOrders(){
   try {
     const raw = localStorage.getItem(KEY_ORDERS);
-    return raw ? JSON.parse(raw) : SEED_ORDERS;
+    if (raw) return JSON.parse(raw);
+    // First load — persist seed so future index.html orders can merge in
+    localStorage.setItem(KEY_ORDERS, JSON.stringify(SEED_ORDERS));
+    return SEED_ORDERS;
   } catch(e){ return SEED_ORDERS; }
 }
 function persistOrders(){ localStorage.setItem(KEY_ORDERS, JSON.stringify(submissions)); }
 
+// Poll for new orders written by index.html every 5 seconds
+function pollOrders(){
+  try {
+    const raw = localStorage.getItem(KEY_ORDERS);
+    if (!raw) return;
+    const fresh = JSON.parse(raw);
+    if (JSON.stringify(fresh) !== JSON.stringify(submissions)) {
+      submissions = fresh;
+      nextId = submissions.reduce((m,s)=>Math.max(m,s.id),0) + 1;
+      renderAll();
+    }
+  } catch(e){}
+}
+
 let submissions   = loadOrders();
 let nextId        = submissions.reduce((m,s)=>Math.max(m,s.id),0) + 1;
+setInterval(pollOrders, 5000);
 let currentFilter = 'all';
 let editingId     = null;
 let isAdding      = false;
