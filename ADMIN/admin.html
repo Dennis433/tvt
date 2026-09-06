@@ -231,6 +231,7 @@ td{padding:.85rem 1rem;font-size:.85rem;vertical-align:middle}
         <button class="filter-btn" onclick="setFilter('pending',this)">Pending</button>
         <button class="filter-btn" onclick="setFilter('confirmed',this)">Confirmed</button>
         <button class="filter-btn" onclick="setFilter('rejected',this)">Rejected</button>
+        <button class="filter-btn" onclick="forceRefresh(this)" style="color:var(--blue);border-color:rgba(77,184,255,0.25)" id="refresh-btn">⟳ Refresh</button>
         <button class="btn-add" onclick="openAddModal()">+ ADD ENTRY</button>
       </div>
 
@@ -443,19 +444,36 @@ function refreshDebug(){
 }
 
 let submissions   = loadOrders();
+let nextId        = Date.now(); // timestamp-based, never clashes with index.html
 
-// One-time cleanup: remove any fake seed orders (placeholder wallet addresses)
-(function purgeSeedData(){
-  const FAKE_WALLETS = ['0xab3...f91a','0x7fc...2d3b','0x1ea...9901','0xb2f...4c71','0x5dd...7f3c'];
-  const cleaned = submissions.filter(o => !FAKE_WALLETS.includes((o.wallet||'').toLowerCase()));
-  if (cleaned.length !== submissions.length) {
-    submissions = cleaned;
-    persistOrders();
-  }
-})();
-
-let nextId        = submissions.reduce((m,s)=>Math.max(m,s.id),0) + 1;
-setInterval(pollOrders, 5000);
+// Poll for new orders written by index.html every 3 seconds
+// Merges by ID so admin edits (status changes) are never overwritten by fresh index.html writes
+function pollOrders(){
+  try {
+    const raw = localStorage.getItem(KEY_ORDERS);
+    if (!raw) return;
+    const fresh = JSON.parse(raw);
+    // Build a map of current admin state (preserves status edits)
+    const adminMap = {};
+    submissions.forEach(o => adminMap[o.id] = o);
+    let changed = false;
+    fresh.forEach(o => {
+      if (!adminMap[o.id]) {
+        // Brand new entry from index.html — add it
+        adminMap[o.id] = o;
+        changed = true;
+      }
+      // If ID exists, admin version wins (so confirm/reject edits survive the poll)
+    });
+    if (changed) {
+      submissions = Object.values(adminMap).sort((a,b) => b.id - a.id);
+      nextId = Date.now();
+      persistOrders();
+      renderAll();
+    }
+  } catch(e){}
+}
+setInterval(pollOrders, 3000);
 // Run debug on load
 window.addEventListener('DOMContentLoaded', refreshDebug);
 let currentFilter = 'all';
@@ -479,7 +497,10 @@ function doLogin(){
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('admin-shell').style.display  = 'block';
     document.getElementById('admin-name-tag').textContent = u.toUpperCase();
+    // Always re-read fresh from localStorage on login
+    submissions = loadOrders();
     renderAll();
+    refreshDebug();
   } else {
     document.getElementById('login-err').style.display = 'block';
   }
@@ -491,6 +512,15 @@ function doLogout(){
 }
 
 // ── FILTER ───────────────────────────────────────────────────────
+function forceRefresh(btn){
+  submissions = loadOrders();
+  renderAll();
+  refreshDebug();
+  const orig = btn.textContent;
+  btn.textContent = '✓ Done';
+  setTimeout(()=>btn.textContent = orig, 1200);
+}
+
 function setFilter(f, btn){
   currentFilter = f;
   document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
@@ -619,7 +649,7 @@ function saveModal(){
     const username = document.getElementById('m-username').value.trim();
     const wallet   = document.getElementById('m-wallet').value.trim();
     if(!username || !wallet){ showToast('⚠ Username and wallet required.','var(--yellow)'); return; }
-    submissions.push({ id:nextId++, username, wallet, usdt, tvt, txHash:'—', status, date: new Date().toISOString().slice(0,10) });
+    submissions.push({ id: Date.now(), username, wallet, usdt, tvt, txHash:'—', status, date: new Date().toISOString().slice(0,10) });
     showToast('✅ Entry added.');
   } else {
     const s = submissions.find(x=>x.id===editingId);
