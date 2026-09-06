@@ -406,75 +406,43 @@ function populateSettingsForm(){
   document.getElementById('s-tvt-price').value     = s.tvtPrice;
 }
 
-// ── LOAD / SAVE ORDERS ───────────────────────────────────────────
-function loadOrders(){
+// ── LOAD / SAVE ORDERS — via Flask API ───────────────────────────
+async function loadOrders(){
   try {
-    const raw = localStorage.getItem(KEY_ORDERS);
-    return raw ? JSON.parse(raw) : [];
+    const res = await fetch('/api/submissions');
+    if(!res.ok) return [];
+    return await res.json();
   } catch(e){ return []; }
 }
-function persistOrders(){ localStorage.setItem(KEY_ORDERS, JSON.stringify(submissions)); }
 
-// Poll for new orders written by index.html every 5 seconds
-function pollOrders(){
+function persistOrders(){ /* no-op — Flask handles persistence */ }
+
+async function pollOrders(){
   try {
-    const raw = localStorage.getItem(KEY_ORDERS);
-    const fresh = raw ? JSON.parse(raw) : [];
-    if (JSON.stringify(fresh) !== JSON.stringify(submissions)) {
+    const fresh = await loadOrders();
+    if(JSON.stringify(fresh) !== JSON.stringify(submissions)){
       submissions = fresh;
-      nextId = submissions.reduce((m,s)=>Math.max(m,s.id),0) + 1;
       renderAll();
     }
   } catch(e){}
 }
 
 function refreshDebug(){
-  const raw = localStorage.getItem('tvt_orders');
-  const el  = document.getElementById('debug-output');
-  if (!raw) {
-    el.textContent = '❌ tvt_orders key does NOT exist in localStorage.\n\nAll keys present:\n' + Object.keys(localStorage).join('\n');
-    return;
-  }
-  try {
-    const orders = JSON.parse(raw);
-    el.textContent = `✅ tvt_orders found — ${orders.length} order(s):\n\n` + JSON.stringify(orders, null, 2);
-  } catch(e) {
-    el.textContent = '⚠️ tvt_orders exists but failed to parse: ' + e.message + '\n\nRaw:\n' + raw.slice(0, 500);
-  }
-}
-
-let submissions   = loadOrders();
-let nextId        = Date.now(); // timestamp-based, never clashes with index.html
-
-// Poll for new orders written by index.html every 3 seconds
-// Merges by ID so admin edits (status changes) are never overwritten by fresh index.html writes
-function pollOrders(){
-  try {
-    const raw = localStorage.getItem(KEY_ORDERS);
-    if (!raw) return;
-    const fresh = JSON.parse(raw);
-    // Build a map of current admin state (preserves status edits)
-    const adminMap = {};
-    submissions.forEach(o => adminMap[o.id] = o);
-    let changed = false;
-    fresh.forEach(o => {
-      if (!adminMap[o.id]) {
-        // Brand new entry from index.html — add it
-        adminMap[o.id] = o;
-        changed = true;
-      }
-      // If ID exists, admin version wins (so confirm/reject edits survive the poll)
+  const el = document.getElementById('debug-output');
+  fetch('/api/submissions')
+    .then(r => r.json())
+    .then(data => {
+      el.textContent = `✅ Flask connected — ${data.length} submission(s):\n\n` + JSON.stringify(data, null, 2);
+    })
+    .catch(e => {
+      el.textContent = '❌ Cannot reach Flask at /api/submissions\n\nRun: python app.py\n\n' + e.message;
     });
-    if (changed) {
-      submissions = Object.values(adminMap).sort((a,b) => b.id - a.id);
-      nextId = Date.now();
-      persistOrders();
-      renderAll();
-    }
-  } catch(e){}
 }
-setInterval(pollOrders, 3000);
-// Run debug on load
+
+let submissions = [];
+let nextId      = Date.now();
+
+setInterval(pollOrders, 5000);
 window.addEventListener('DOMContentLoaded', refreshDebug);
 let currentFilter = 'all';
 let editingId     = null;
@@ -490,15 +458,14 @@ function switchTab(name, btn){
 }
 
 // ── LOGIN ─────────────────────────────────────────────────────────
-function doLogin(){
+async function doLogin(){
   const u = document.getElementById('login-user').value.trim();
   const p = document.getElementById('login-pass').value;
   if(ADMIN_CREDENTIALS[u] && ADMIN_CREDENTIALS[u] === p){
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('admin-shell').style.display  = 'block';
     document.getElementById('admin-name-tag').textContent = u.toUpperCase();
-    // Always re-read fresh from localStorage on login
-    submissions = loadOrders();
+    submissions = await loadOrders();
     renderAll();
     refreshDebug();
   } else {
@@ -512,8 +479,8 @@ function doLogout(){
 }
 
 // ── FILTER ───────────────────────────────────────────────────────
-function forceRefresh(btn){
-  submissions = loadOrders();
+async function forceRefresh(btn){
+  submissions = await loadOrders();
   renderAll();
   refreshDebug();
   const orig = btn.textContent;
@@ -596,18 +563,26 @@ function renderTable(){
 }
 
 // ── QUICK ACTIONS ─────────────────────────────────────────────────
-function quickConfirm(id){
+async function quickConfirm(id){
   const s = submissions.find(x=>x.id===id);
   if(!s) return;
   if(!s.tvt){ openEditModal(id); showToast('⚠ Set $TVT balance before confirming.','var(--yellow)'); return; }
-  s.status = 'confirmed';
-  persistOrders(); renderAll(); showToast('✅ Confirmed @'+s.username);
+  await fetch(`/api/submissions/${encodeURIComponent(id)}`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ status:'confirmed' })
+  });
+  submissions = await loadOrders();
+  renderAll(); showToast('✅ Confirmed @'+s.username);
 }
-function quickReject(id){
+async function quickReject(id){
   const s = submissions.find(x=>x.id===id);
   if(!s) return;
-  s.status = 'rejected';
-  persistOrders(); renderAll(); showToast('✕ Rejected @'+s.username,'var(--red)');
+  await fetch(`/api/submissions/${encodeURIComponent(id)}`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ status:'rejected' })
+  });
+  submissions = await loadOrders();
+  renderAll(); showToast('✕ Rejected @'+s.username,'var(--red)');
 }
 
 // ── MODAL ─────────────────────────────────────────────────────────
@@ -640,7 +615,8 @@ function openAddModal(){
   document.getElementById('modal-bg').classList.add('open');
 }
 function closeModal(){ document.getElementById('modal-bg').classList.remove('open'); }
-function saveModal(){
+
+async function saveModal(){
   const usdt   = parseFloat(document.getElementById('m-robin').value) || 0;
   const tvt    = parseFloat(document.getElementById('m-tvt').value)   || 0;
   const status = document.getElementById('m-status').value;
@@ -649,15 +625,24 @@ function saveModal(){
     const username = document.getElementById('m-username').value.trim();
     const wallet   = document.getElementById('m-wallet').value.trim();
     if(!username || !wallet){ showToast('⚠ Username and wallet required.','var(--yellow)'); return; }
-    submissions.push({ id: Date.now(), username, wallet, usdt, tvt, txHash:'—', status, date: new Date().toISOString().slice(0,10) });
+    const res = await fetch('/api/submissions', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ username, wallet, usdt, tvt, status })
+    });
+    if(!res.ok){ showToast('⚠ Failed to add entry.','var(--red)'); return; }
     showToast('✅ Entry added.');
   } else {
     const s = submissions.find(x=>x.id===editingId);
-    if(!s) return;
-    s.usdt = usdt; s.tvt = tvt; s.status = status;
-    showToast('✅ @'+s.username+' updated.');
+    const res = await fetch(`/api/submissions/${encodeURIComponent(editingId)}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ usdt, tvt, status })
+    });
+    if(!res.ok){ showToast('⚠ Update failed.','var(--red)'); return; }
+    showToast('✅ @'+(s?.username||'')+' updated.');
   }
-  persistOrders(); closeModal(); renderAll();
+  closeModal();
+  submissions = await loadOrders();
+  renderAll();
 }
 
 document.getElementById('modal-bg').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeModal(); });
