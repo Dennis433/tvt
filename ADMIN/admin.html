@@ -202,6 +202,15 @@ td{padding:.85rem 1rem;font-size:.85rem;vertical-align:middle}
 
     <!-- ── ORDERS TAB ── -->
     <div class="tab-panel active" id="tab-orders">
+      <!-- ── DEBUG PANEL ── -->
+      <div id="debug-panel" style="background:#1a1a1a;border:1px solid #ff5555;border-radius:10px;padding:1rem;margin-bottom:1rem;font-size:.8rem;font-family:monospace;color:#ff5555;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
+          <strong>🔍 DEBUG — localStorage Inspector</strong>
+          <button onclick="refreshDebug()" style="background:#333;border:1px solid #555;color:#ccc;padding:.25rem .75rem;border-radius:6px;cursor:pointer;">Refresh</button>
+        </div>
+        <div id="debug-output" style="color:#ccc;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto;"></div>
+      </div>
+
       <!-- KPIs -->
       <div class="kpi-strip" id="kpi-strip">
         <div class="kpi"><div class="kpi-val green" id="kpi-total">0</div><div class="kpi-lbl">Total Submissions</div></div>
@@ -418,6 +427,21 @@ function pollOrders(){
   } catch(e){}
 }
 
+function refreshDebug(){
+  const raw = localStorage.getItem('tvt_orders');
+  const el  = document.getElementById('debug-output');
+  if (!raw) {
+    el.textContent = '❌ tvt_orders key does NOT exist in localStorage.\n\nAll keys present:\n' + Object.keys(localStorage).join('\n');
+    return;
+  }
+  try {
+    const orders = JSON.parse(raw);
+    el.textContent = `✅ tvt_orders found — ${orders.length} order(s):\n\n` + JSON.stringify(orders, null, 2);
+  } catch(e) {
+    el.textContent = '⚠️ tvt_orders exists but failed to parse: ' + e.message + '\n\nRaw:\n' + raw.slice(0, 500);
+  }
+}
+
 let submissions   = loadOrders();
 
 // One-time cleanup: remove any fake seed orders (placeholder wallet addresses)
@@ -432,6 +456,8 @@ let submissions   = loadOrders();
 
 let nextId        = submissions.reduce((m,s)=>Math.max(m,s.id),0) + 1;
 setInterval(pollOrders, 5000);
+// Run debug on load
+window.addEventListener('DOMContentLoaded', refreshDebug);
 let currentFilter = 'all';
 let editingId     = null;
 let isAdding      = false;
