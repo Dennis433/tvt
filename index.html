@@ -1347,9 +1347,12 @@ async function bmConfirm() {
   }
 }
 
-// Close modal clicking backdrop
-document.getElementById('buy-modal-bg').addEventListener('click', e => {
-  if (e.target === e.currentTarget) closeBuyModal();
+// Close modal clicking backdrop — deferred so DOM is ready
+document.addEventListener('DOMContentLoaded', function(){
+  const buyBg = document.getElementById('buy-modal-bg');
+  if(buyBg) buyBg.addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeBuyModal();
+  });
 });
 
 // ─── BUY BUTTON → opens modal ────────────────────────────────────────────────
@@ -1772,8 +1775,9 @@ function closeWhitepaper(){
   document.getElementById('wp-modal-bg').style.display='none';
   document.body.style.overflow='';
 }
-document.getElementById('wp-modal-bg').addEventListener('click',function(e){
-  if(e.target===this){closeWhitepaper();}
+document.addEventListener('DOMContentLoaded',function(){
+  const wpBg = document.getElementById('wp-modal-bg');
+  if(wpBg) wpBg.addEventListener('click',function(e){ if(e.target===this) closeWhitepaper(); });
 });
 document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){closeWhitepaper();}
@@ -2206,7 +2210,10 @@ async function admSaveModal(){
   admCloseModal();
   admLoadAndRender();
 }
-document.getElementById('adm-modal').addEventListener('click',e=>{ if(e.target===e.currentTarget) admCloseModal(); });
+document.addEventListener('DOMContentLoaded',function(){
+  const admBg = document.getElementById('adm-modal');
+  if(admBg) admBg.addEventListener('click',e=>{ if(e.target===e.currentTarget) admCloseModal(); });
+});
 
 // ── Settings ──────────────────────────────────────────────────
 function admPopulateSettings(){
