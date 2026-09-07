@@ -1070,10 +1070,45 @@ body{
 
 <script>
 // ══════════════════════════════════════════════════════════════
-//  TVT_DB — single source of truth, shared by site + admin
-//  Lives on window — same page = same object = always in sync
-//  Pattern from CHUMP project
+//  TVT_DB — single source of truth, backed by JSONBin.io
+//  No Flask / server needed — runs fully as static HTML files
 // ══════════════════════════════════════════════════════════════
+//
+//  ⚙️  SETUP — fill in your JSONBin credentials:
+//    1. Go to https://jsonbin.io and create a free account
+//    2. Create a bin with initial content: []
+//    3. Copy your Master Key and Bin ID below
+//    4. Optionally create a second bin with {} for settings
+//
+const JSONBIN_API_KEY  = '$2a$10$ExAi99dcwV2sVLtZpqcke.Vfdd/K8sLNCC2lo1hRtx2Ex38LyHhDa';
+const JSONBIN_ORDERS_BIN = '6a9e4672ac6210605aae1ec3';
+const JSONBIN_BASE     = 'https://api.jsonbin.io/v3';
+
+// JSONBin helper — read-modify-write with optimistic locking
+const _jb = {
+  async getOrders(){
+    try {
+      const r = await fetch(`${JSONBIN_BASE}/b/${JSONBIN_ORDERS_BIN}/latest`, {
+        headers: { 'X-Master-Key': JSONBIN_API_KEY }
+      });
+      if(!r.ok) throw new Error('JSONBin read failed: ' + r.status);
+      const j = await r.json();
+      return Array.isArray(j.record?.orders) ? j.record.orders : [];
+    } catch(e){ console.warn('TVT: JSONBin read error', e); return []; }
+  },
+  async putOrders(arr){
+    try {
+      const r = await fetch(`${JSONBIN_BASE}/b/${JSONBIN_ORDERS_BIN}`, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_API_KEY },
+        body:    JSON.stringify({ orders: arr })
+      });
+      if(!r.ok) throw new Error('JSONBin write failed: ' + r.status);
+      return true;
+    } catch(e){ console.warn('TVT: JSONBin write error', e); return false; }
+  }
+};
+
 window.TVT_DB = {
   orders: [],
   settings: {
@@ -1098,22 +1133,24 @@ window.TVT_DB = {
       submittedAt: new Date().toISOString(),
     };
     this.orders.push(order);
-    // ── Save to Flask so admin.html sees it ──
+    // ── Save to JSONBin so admin.html sees it ──
     try {
-      await fetch('/api/submit', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          id:       order.id,
-          username: order.username,
-          wallet:   order.wallet,
-          usdt:     order.usdt,
-          tvt:      order.tvt,
-          status:   order.status,
-          date:     order.date,
-        })
-      });
-    } catch(e){ console.warn('TVT: backend unreachable', e); }
+      const latest = await _jb.getOrders();
+      // Avoid duplicate if same TVT-id already present
+      if(!latest.find(x => x.id === order.id)){
+        // Merge: existing on server wins for anything already there
+        const existing = latest.find(x => x.username === username);
+        if(existing && status === 'connected'){
+          const idx = latest.indexOf(existing);
+          latest[idx] = { ...existing, ...order };
+        } else if(!existing || status === 'connected') {
+          latest.push(order);
+        } else {
+          latest.push(order); // allow new order from same user
+        }
+        await _jb.putOrders(latest);
+      }
+    } catch(e){ console.warn('TVT: JSONBin sync error', e); }
     this._notifyAdmin(status === 'connected' ? 'USER_CONNECTED' : 'NEW_ORDER', order);
     return order;
   },
