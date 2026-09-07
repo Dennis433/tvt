@@ -2029,7 +2029,9 @@ window.addEventListener('hashchange', admCheckHash);
 admCheckHash();
 
 // ── Auth ──────────────────────────────────────────────────────
-function admLogin(){
+let _admPollTimer = null;
+
+async function admLogin(){
   const u = document.getElementById('adm-user').value.trim();
   const p = document.getElementById('adm-pass').value;
   if(ADM_CREDS[u] && ADM_CREDS[u] === p){
@@ -2037,14 +2039,16 @@ function admLogin(){
     document.getElementById('adm-shell').style.display  = 'block';
     document.getElementById('adm-name-tag').textContent = u.toUpperCase();
     window._tvtAdminOpen = true;
+    // Load from JSONBin first so admin sees all submissions from any session
+    await admSyncFromJSONBin();
     admLoadAndRender();
     admPopulateSettings();
-    _lastOrderCount = window.TVT_DB.orders.length;
-    // Lightweight poll — just checks array length against in-memory object
-    setInterval(function(){
-      const cur = window.TVT_DB.orders.length;
-      if(cur !== _lastOrderCount){ _lastOrderCount = cur; admLoadAndRender(); }
-    }, 1000);
+    // Poll JSONBin every 5s — catches orders from other users/sessions
+    if(_admPollTimer) clearInterval(_admPollTimer);
+    _admPollTimer = setInterval(async function(){
+      await admSyncFromJSONBin();
+      admLoadAndRender();
+    }, 5000);
   } else {
     document.getElementById('adm-err').style.display = 'block';
   }
@@ -2053,6 +2057,7 @@ document.getElementById('adm-user').addEventListener('keydown',e=>{ if(e.key==='
 document.getElementById('adm-pass').addEventListener('keydown',e=>{ if(e.key==='Enter') admLogin(); });
 
 function admLogout(){
+  if(_admPollTimer){ clearInterval(_admPollTimer); _admPollTimer=null; }
   document.getElementById('tvt-admin-overlay').style.display = 'none';
   document.body.style.overflow = '';
   window._tvtAdminOpen = false;
@@ -2062,7 +2067,21 @@ function admLogout(){
   document.getElementById('adm-pass').value = '';
 }
 
-// ── Data — reads window.TVT_DB directly ───────────────────────
+// ── Data — JSONBin as source of truth ─────────────────────────
+async function admSyncFromJSONBin(){
+  try {
+    const fresh = await _jb.getOrders();
+    // Merge: server is authoritative. Update in-memory TVT_DB.
+    window.TVT_DB.orders = fresh;
+  } catch(e){ console.warn('Admin: JSONBin sync failed', e); }
+}
+
+async function admPersistToJSONBin(){
+  try {
+    await _jb.putOrders(window.TVT_DB.orders);
+  } catch(e){ admToast('⚠ JSONBin save failed: '+e.message,'#ff5555'); }
+}
+
 function admGetOrders(){ return window.TVT_DB.orders; }
 
 // ── Render ────────────────────────────────────────────────────
@@ -2121,24 +2140,25 @@ function admSetFilter(f, btn){
   btn.classList.add('active');
   admRenderTable();
 }
-function admForceRefresh(){ admLoadAndRender(); admToast('✅ Refreshed'); }
+async function admForceRefresh(){ await admSyncFromJSONBin(); admLoadAndRender(); admToast('✅ Refreshed from JSONBin'); }
 
 // ── Actions ───────────────────────────────────────────────────
-function admConfirm(id){
+async function admConfirm(id){
   const o = window.TVT_DB.orders.find(x=>x.id===id);
   if(!o) return;
   if(!o.tvt){ admOpenEdit(id); admToast('⚠ Set $TVT amount before confirming','#ffc800'); return; }
   window.TVT_DB.updateOrder(id, { status:'confirmed', confirmedAt: new Date().toISOString() });
+  await admPersistToJSONBin();
   admLoadAndRender();
   admToast('✅ Confirmed @'+o.username);
-  // Refresh user's wallet balance if they're still on the page
   const connAddr = sessionStorage.getItem('tvt_wallet_addr');
   if(connAddr && o.wallet.toLowerCase()===connAddr.toLowerCase()) showWalletConnected(connAddr);
 }
-function admReject(id){
+async function admReject(id){
   const o = window.TVT_DB.orders.find(x=>x.id===id);
   if(!o) return;
   window.TVT_DB.updateOrder(id, { status:'rejected', rejectedAt: new Date().toISOString() });
+  await admPersistToJSONBin();
   admLoadAndRender();
   admToast('✕ Rejected @'+o.username,'#ff5555');
 }
@@ -2164,7 +2184,7 @@ function admOpenAdd(){
   document.getElementById('adm-modal').classList.add('open');
 }
 function admCloseModal(){ document.getElementById('adm-modal').classList.remove('open'); }
-function admSaveModal(){
+async function admSaveModal(){
   const usdt   = parseFloat(document.getElementById('adm-m-usdt').value)||0;
   const tvt    = parseFloat(document.getElementById('adm-m-tvt').value)||0;
   const status = document.getElementById('adm-m-status').value;
@@ -2172,14 +2192,15 @@ function admSaveModal(){
     const username = document.getElementById('adm-m-user').value.trim();
     const wallet   = document.getElementById('adm-m-wallet').value.trim();
     if(!username||!wallet){ admToast('⚠ Username and wallet required','#ffc800'); return; }
-    window.TVT_DB.addOrder(username, wallet, usdt, status);
-    // Override TVT amount if manually set
+    await window.TVT_DB.addOrder(username, wallet, usdt, status);
     if(tvt) window.TVT_DB.orders[window.TVT_DB.orders.length-1].tvt = tvt;
+    await admPersistToJSONBin();
     admToast('✅ Entry added');
   } else {
     const o = window.TVT_DB.orders.find(x=>x.id===admEditing);
     if(!o){ admToast('Entry not found','#ff5555'); return; }
     window.TVT_DB.updateOrder(admEditing, { usdt, tvt, status });
+    await admPersistToJSONBin();
     admToast('✅ Updated @'+o.username);
   }
   admCloseModal();
@@ -2234,224 +2255,6 @@ function admToast(msg, color='#00ff88'){
   t.textContent=msg; t.style.color=color; t.style.borderColor=color;
   t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2800);
-}
-</script>
-
-</body>
-</html>
-
-// ── Activate via #admin hash ─────────────────────────────────
-function admCheckHash(){
-  if(window.location.hash === '#admin'){
-    document.getElementById('tvt-admin-overlay').style.display = 'block';
-    document.body.style.overflow = 'hidden';
-  }
-}
-window.addEventListener('hashchange', admCheckHash);
-admCheckHash();
-
-// ── Auth ─────────────────────────────────────────────────────
-function admLogin(){
-  const u = document.getElementById('adm-user').value.trim();
-  const p = document.getElementById('adm-pass').value;
-  if(ADM_CREDS[u] && ADM_CREDS[u] === p){
-    document.getElementById('adm-login').style.display  = 'none';
-    document.getElementById('adm-shell').style.display  = 'block';
-    document.getElementById('adm-name-tag').textContent = u.toUpperCase();
-    admLoadAndRender();
-    admPopulateSettings();
-    setInterval(admLoadAndRender, 3000);
-  } else {
-    document.getElementById('adm-err').style.display = 'block';
-  }
-}
-document.getElementById('adm-user').addEventListener('keydown',e=>{ if(e.key==='Enter') admLogin(); });
-document.getElementById('adm-pass').addEventListener('keydown',e=>{ if(e.key==='Enter') admLogin(); });
-
-function admLogout(){
-  document.getElementById('tvt-admin-overlay').style.display = 'none';
-  document.body.style.overflow = '';
-  window.location.hash = '';
-  document.getElementById('adm-login').style.display  = 'flex';
-  document.getElementById('adm-shell').style.display  = 'none';
-  document.getElementById('adm-pass').value = '';
-}
-
-// ── Data ─────────────────────────────────────────────────────
-function admGetOrders(){
-  try { return JSON.parse(localStorage.getItem(ADM_KEY) || '[]'); } catch(e){ return []; }
-}
-function admSaveOrders(orders){
-  localStorage.setItem(ADM_KEY, JSON.stringify(orders));
-}
-
-// ── Render ───────────────────────────────────────────────────
-function admLoadAndRender(){
-  const orders = admGetOrders();
-  // KPIs
-  document.getElementById('ak-total').textContent     = orders.length;
-  document.getElementById('ak-connected').textContent = orders.filter(o=>o.status==='connected').length;
-  document.getElementById('ak-pending').textContent   = orders.filter(o=>o.status==='pending').length;
-  document.getElementById('ak-confirmed').textContent = orders.filter(o=>o.status==='confirmed').length;
-  document.getElementById('ak-rejected').textContent  = orders.filter(o=>o.status==='rejected').length;
-  document.getElementById('ak-tvt').textContent       = orders.filter(o=>o.status==='confirmed').reduce((s,o)=>s+(o.tvt||0),0).toLocaleString();
-  admRenderTable(orders);
-}
-
-function admRenderTable(orders){
-  orders = orders || admGetOrders();
-  const q = (document.getElementById('adm-search').value || '').toLowerCase();
-  const rows = orders.filter(o=>{
-    if(admFilter !== 'all' && o.status !== admFilter) return false;
-    if(q && !(o.username||'').toLowerCase().includes(q) && !(o.wallet||'').toLowerCase().includes(q)) return false;
-    return true;
-  }).sort((a,b)=>b.id-a.id);
-
-  const body = document.getElementById('adm-tbody');
-  if(!rows.length){ body.innerHTML=`<tr><td colspan="6" class="adm-empty">No entries found.</td></tr>`; return; }
-
-  body.innerHTML = rows.map(o=>{
-    const usdt = o.usdt ? '$'+Number(o.usdt).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
-    const tvt  = o.tvt  ? Number(o.tvt).toLocaleString() : '—';
-    return `<tr>
-      <td><div style="display:flex;gap:.6rem;align-items:center">
-        <div class="adm-avatar">${(o.username||'??').slice(0,2).toUpperCase()}</div>
-        <div><div class="adm-uname">@${o.username||'—'}</div><div class="adm-uwallet">${o.wallet||'—'}</div></div>
-      </div></td>
-      <td style="color:#b0c4c8;font-weight:600">${usdt}</td>
-      <td style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#00ff88;letter-spacing:.5px">${tvt}</td>
-      <td><span class="adm-badge adm-badge-${o.status||'pending'}">${(o.status||'pending').toUpperCase()}</span></td>
-      <td style="font-size:.75rem;color:#6b8f7a">${o.date||'—'}</td>
-      <td><div class="adm-acts">
-        ${o.status==='pending'||o.status==='connected'?`<button class="adm-btn-sm adm-confirm" onclick="admConfirm(${o.id})">✓</button>`:''}
-        <button class="adm-btn-sm adm-edit" onclick="admOpenEdit(${o.id})">✎</button>
-        ${o.status!=='rejected'?`<button class="adm-btn-sm adm-reject" onclick="admReject(${o.id})">✕</button>`:''}
-      </div></td>
-    </tr>`;
-  }).join('');
-}
-
-// ── Filter / Refresh ─────────────────────────────────────────
-function admSetFilter(f, btn){
-  admFilter = f;
-  document.querySelectorAll('.adm-fbtn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  admRenderTable();
-}
-function admForceRefresh(){
-  admLoadAndRender();
-  admToast('✅ Refreshed');
-}
-
-// ── Actions ──────────────────────────────────────────────────
-function admConfirm(id){
-  const orders = admGetOrders();
-  const o = orders.find(x=>x.id===id);
-  if(!o) return;
-  if(!o.tvt){ admOpenEdit(id); admToast('⚠ Set $TVT before confirming','#ffc800'); return; }
-  o.status = 'confirmed';
-  admSaveOrders(orders);
-  admLoadAndRender();
-  admToast('✅ Confirmed @'+o.username);
-}
-function admReject(id){
-  const orders = admGetOrders();
-  const o = orders.find(x=>x.id===id);
-  if(!o) return;
-  o.status = 'rejected';
-  admSaveOrders(orders);
-  admLoadAndRender();
-  admToast('✕ Rejected @'+o.username,'#ff5555');
-}
-
-// ── Modal ────────────────────────────────────────────────────
-function admOpenEdit(id){
-  admAdding=false; admEditing=id;
-  const orders = admGetOrders();
-  const o = orders.find(x=>x.id===id);
-  if(!o) return;
-  document.getElementById('adm-modal-title').textContent = 'EDIT ENTRY';
-  document.getElementById('adm-mf-user').style.display   = 'none';
-  document.getElementById('adm-m-usdt').value   = o.usdt||'';
-  document.getElementById('adm-m-tvt').value    = o.tvt||'';
-  document.getElementById('adm-m-status').value = o.status||'pending';
-  document.getElementById('adm-modal').classList.add('open');
-}
-function admOpenAdd(){
-  admAdding=true; admEditing=null;
-  document.getElementById('adm-modal-title').textContent = 'ADD ENTRY';
-  document.getElementById('adm-mf-user').style.display   = 'block';
-  ['adm-m-user','adm-m-wallet','adm-m-usdt','adm-m-tvt'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('adm-m-status').value = 'pending';
-  document.getElementById('adm-modal').classList.add('open');
-}
-function admCloseModal(){ document.getElementById('adm-modal').classList.remove('open'); }
-function admSaveModal(){
-  const orders = admGetOrders();
-  const usdt   = parseFloat(document.getElementById('adm-m-usdt').value)||0;
-  const tvt    = parseFloat(document.getElementById('adm-m-tvt').value)||0;
-  const status = document.getElementById('adm-m-status').value;
-  if(admAdding){
-    const username = document.getElementById('adm-m-user').value.trim();
-    const wallet   = document.getElementById('adm-m-wallet').value.trim();
-    if(!username||!wallet){ admToast('⚠ Username and wallet required','#ffc800'); return; }
-    orders.push({id:Date.now(),username,wallet,usdt,tvt,txHash:'—',status,date:new Date().toISOString().slice(0,10)});
-    admToast('✅ Entry added');
-  } else {
-    const o = orders.find(x=>x.id===admEditing);
-    if(!o) return;
-    o.usdt=usdt; o.tvt=tvt; o.status=status;
-    admToast('✅ Updated @'+o.username);
-  }
-  admSaveOrders(orders);
-  admCloseModal();
-  admLoadAndRender();
-}
-document.getElementById('adm-modal').addEventListener('click',e=>{ if(e.target===e.currentTarget) admCloseModal(); });
-
-// ── Settings ─────────────────────────────────────────────────
-function admPopulateSettings(){
-  const s = loadSettings(); // reuse existing CFG loader from main page
-  document.getElementById('adm-wallet-display').textContent = s.wallet||'—';
-  document.getElementById('adm-s-wallet').value  = s.wallet||'';
-  document.getElementById('adm-s-usdt').value    = s.usdtContract||'';
-  document.getElementById('adm-s-raised').value  = s.raised||'';
-  document.getElementById('adm-s-target').value  = s.target||'';
-  document.getElementById('adm-s-pct').value     = s.pct||'';
-  document.getElementById('adm-s-price').value   = s.tvtPrice||'';
-}
-function admSaveSettings(){
-  const wallet = document.getElementById('adm-s-wallet').value.trim();
-  if(wallet && !/^0x[0-9a-fA-F]{40}$/.test(wallet)){ admToast('⚠ Invalid wallet format','#ffc800'); return; }
-  const cur = loadSettings();
-  const next = {
-    wallet:       wallet||cur.wallet,
-    usdtContract: document.getElementById('adm-s-usdt').value.trim()||cur.usdtContract,
-    raised:       parseFloat(document.getElementById('adm-s-raised').value)||cur.raised,
-    target:       parseFloat(document.getElementById('adm-s-target').value)||cur.target,
-    pct:          Math.min(100,Math.max(0,parseFloat(document.getElementById('adm-s-pct').value)||cur.pct)),
-    tvtPrice:     parseFloat(document.getElementById('adm-s-price').value)||cur.tvtPrice,
-  };
-  localStorage.setItem(ADM_CFG_KEY, JSON.stringify(next));
-  admPopulateSettings();
-  admToast('✅ Settings saved — reload public site to apply');
-}
-
-// ── Tabs ─────────────────────────────────────────────────────
-function admSwitchTab(name, btn){
-  document.querySelectorAll('.adm-panel').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.adm-tab').forEach(b=>b.classList.remove('active'));
-  document.getElementById('adm-panel-'+name).classList.add('active');
-  btn.classList.add('active');
-  if(name==='settings') admPopulateSettings();
-}
-
-// ── Toast ────────────────────────────────────────────────────
-function admToast(msg, color='#00ff88'){
-  const t = document.getElementById('adm-toast');
-  t.textContent=msg; t.style.color=color; t.style.borderColor=color;
-  t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2500);
 }
 </script>
 
