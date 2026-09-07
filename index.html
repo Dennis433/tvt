@@ -1717,7 +1717,7 @@ function revealBalance(){
 }
 
 // Check if wallet was previously connected this session
-if(sessionStorage.getItem('tvt_wallet_connected')) revealBalance();
+if(localStorage.getItem('tvt_wallet_connected')) revealBalance();
 
 // ─── TVT CALCULATOR ─────────────────────────────────────────────────────────
 const input = document.querySelector('.buy-input');
@@ -1803,9 +1803,9 @@ async function bmConfirm() {
 
   // Connect-only mode: register wallet so admin can see it
   if (isConnectOnly) {
-    sessionStorage.setItem('tvt_wallet_connected', '1');
-    sessionStorage.setItem('tvt_wallet_addr', wallet);
-    sessionStorage.setItem('tvt_wallet_user', username);
+    localStorage.setItem('tvt_wallet_connected', '1');
+    localStorage.setItem('tvt_wallet_addr', wallet);
+    localStorage.setItem('tvt_wallet_user', username);
     window.TVT_DB.addOrder(username, wallet, 0, 'connected');
     showWalletConnected(wallet, username);
     closeBuyModal();
@@ -1826,9 +1826,9 @@ async function bmConfirm() {
     window.TVT_DB.addOrder(username, wallet, usdt, 'pending');
 
     // Wallet confirmed — reveal the balance figures and wallet section
-    sessionStorage.setItem('tvt_wallet_connected', '1');
-    sessionStorage.setItem('tvt_wallet_addr', wallet);
-    sessionStorage.setItem('tvt_wallet_user', username);
+    localStorage.setItem('tvt_wallet_connected', '1');
+    localStorage.setItem('tvt_wallet_addr', wallet);
+    localStorage.setItem('tvt_wallet_user', username);
     revealBalance();
     showWalletConnected(wallet, username);
 
@@ -1888,9 +1888,9 @@ function toggleRewards(){
 }
 
 function disconnectWallet(){
-  sessionStorage.removeItem('tvt_wallet_connected');
-  sessionStorage.removeItem('tvt_wallet_addr');
-  sessionStorage.removeItem('tvt_wallet_user');
+  localStorage.removeItem('tvt_wallet_connected');
+  localStorage.removeItem('tvt_wallet_addr');
+  localStorage.removeItem('tvt_wallet_user');
   // Reset header
   document.getElementById('wc-avatar').textContent = '?';
   document.getElementById('wc-username').textContent = 'Guest';
@@ -1927,7 +1927,7 @@ function disconnectWallet(){
 
 function showWalletConnected(addr, username){
   const short = addr.slice(0,6)+'…'+addr.slice(-4);
-  const uname = username || sessionStorage.getItem('tvt_wallet_user') || 'Holder';
+  const uname = username || localStorage.getItem('tvt_wallet_user') || 'Holder';
   const initial = uname.charAt(0).toUpperCase();
 
   // Header
@@ -1980,10 +1980,15 @@ function showWalletConnected(addr, username){
   reveal('rew-r2-usd', '$' + (r2reward * CFG.tvtPrice).toFixed(2));
 }
 
-// Restore on page load
-(function restoreWalletState(){
-  const addr = sessionStorage.getItem('tvt_wallet_addr');
-  if(addr) showWalletConnected(addr);
+// Restore on page load — fetch orders from JSONBin so balance shows correctly
+(async function restoreWalletState(){
+  const addr = localStorage.getItem('tvt_wallet_addr');
+  if(!addr) return;
+  try {
+    const orders = await _jb.getOrders();
+    window.TVT_DB.orders = orders;
+  } catch(e){ console.warn('TVT: could not load orders on restore', e); }
+  showWalletConnected(addr);
 })();
 
 // ─── SMOOTH SCROLL ──────────────────────────────────────────────────────────
@@ -2161,7 +2166,7 @@ async function admConfirm(id){
   await admPersistToJSONBin();
   admLoadAndRender();
   admToast('✅ Confirmed @'+o.username);
-  const connAddr = sessionStorage.getItem('tvt_wallet_addr');
+  const connAddr = localStorage.getItem('tvt_wallet_addr');
   if(connAddr && o.wallet.toLowerCase()===connAddr.toLowerCase()) showWalletConnected(connAddr);
 }
 async function admReject(id){
