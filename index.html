@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⏳</text></svg>"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>TimeVault ($TVT) — Preserve Today · Unlock Tomorrow</title>
 <meta name="description" content="TimeVault ($TVT) — the utility-first meme coin on Robinhood Chain. Join the presale and lock in your future."/>
@@ -1068,7 +1069,508 @@ body{
   </div>
 </footer>
 
+
+<!-- ── BUY MODAL ── -->
+<div id="buy-modal-bg" style="
+  display:none;position:fixed;inset:0;z-index:500;
+  background:rgba(0,0,0,.7);backdrop-filter:blur(6px);
+  align-items:center;justify-content:center;padding:1rem;
+">
+  <div style="
+    background:#08120c;border:1px solid rgba(0,255,136,0.25);border-radius:18px;
+    padding:2rem 1.75rem;width:100%;max-width:420px;
+    box-shadow:0 0 80px rgba(0,255,136,0.08);position:relative;
+  ">
+    <!-- Step 1: username + connect -->
+    <div id="bm-step1">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;color:#00ff88;margin-bottom:.25rem" id="bm-modal-title">CONFIRM YOUR ORDER</div>
+      <div id="bm-modal-sub" style="font-size:.78rem;color:#6b8f7a;font-weight:600;margin-bottom:1.5rem;letter-spacing:.4px">Enter your username then connect your wallet</div>
+
+      <div style="font-size:.7rem;font-weight:800;letter-spacing:1px;color:#6b8f7a;text-transform:uppercase;margin-bottom:.4rem">Username</div>
+      <input id="bm-username" type="text" placeholder="your_username" autocomplete="off" style="
+        width:100%;background:rgba(0,255,136,0.03);border:1px solid rgba(0,255,136,0.15);
+        border-radius:9px;padding:.75rem 1rem;color:#e8f5ee;font-size:.95rem;
+        font-family:'Inter',sans-serif;outline:none;margin-bottom:1rem;
+      " oninput="this.style.borderColor=this.value?'#00ff88':'rgba(0,255,136,0.15)'"/>
+
+      <div style="font-size:.7rem;font-weight:800;letter-spacing:1px;color:#6b8f7a;text-transform:uppercase;margin-bottom:.4rem">Your Wallet Address</div>
+      <input id="bm-wallet-input" type="text" placeholder="0x..." autocomplete="off" style="
+        width:100%;background:rgba(0,255,136,0.03);border:1px solid rgba(0,255,136,0.15);
+        border-radius:9px;padding:.75rem 1rem;color:#e8f5ee;font-size:.85rem;
+        font-family:monospace;outline:none;margin-bottom:1.25rem;
+      " oninput="bmValidateWallet(this)"/>
+
+      <div id="bm-amount-row" style="background:rgba(0,255,136,0.04);border:1px solid rgba(0,255,136,0.1);border-radius:10px;padding:.85rem 1rem;margin-bottom:1.25rem">
+        <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:.35rem">
+          <span style="color:#6b8f7a;font-weight:600">You pay</span>
+          <span style="color:#e8f5ee;font-weight:800" id="bm-usdt-display">— USDT</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.82rem">
+          <span style="color:#6b8f7a;font-weight:600">You receive</span>
+          <span style="color:#00ff88;font-weight:800;font-family:'Bebas Neue',sans-serif;font-size:1rem" id="bm-tvt-display">— $TVT</span>
+        </div>
+      </div>
+
+      <div id="bm-err" style="font-size:.78rem;color:#ff5555;font-weight:700;margin-bottom:.75rem;display:none"></div>
+
+      <div style="display:flex;gap:.65rem">
+        <button onclick="closeBuyModal()" style="
+          flex:1;background:none;border:1px solid rgba(0,255,136,0.15);color:#6b8f7a;
+          padding:.8rem;border-radius:9px;font-weight:700;cursor:pointer;font-size:.88rem;
+        ">Cancel</button>
+        <button id="bm-confirm-btn" onclick="bmConfirm()" style="
+          flex:2;background:#00ff88;color:#020a05;padding:.8rem;border-radius:9px;
+          font-weight:900;border:none;cursor:pointer;font-family:'Bebas Neue',sans-serif;
+          font-size:1.05rem;letter-spacing:2px;box-shadow:0 4px 24px rgba(0,255,136,0.25);
+        ">🔐 CONFIRM & BUY</button>
+      </div>
+    </div>
+
+    <!-- Step 2: processing / done -->
+    <div id="bm-step2" style="display:none;text-align:center;padding:1rem 0">
+      <div id="bm-step2-icon" style="font-size:2.5rem;margin-bottom:1rem">⏳</div>
+      <div id="bm-step2-title" style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:2px;color:#00ff88;margin-bottom:.5rem">SENDING…</div>
+      <div id="bm-step2-msg" style="font-size:.82rem;color:#6b8f7a;font-weight:600;word-break:break-all;padding:0 .5rem"></div>
+      <button id="bm-done-btn" onclick="closeBuyModal()" style="
+        display:none;margin-top:1.5rem;background:#00ff88;color:#020a05;padding:.75rem 2rem;
+        border-radius:9px;font-weight:900;border:none;cursor:pointer;
+        font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;
+      ">DONE</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── WHITEPAPER MODAL ── -->
+<div id="wp-modal-bg" style="
+  display:none;position:fixed;inset:0;z-index:600;
+  background:rgba(0,0,0,.82);backdrop-filter:blur(8px);
+  align-items:flex-start;justify-content:center;
+  padding:1.5rem;overflow-y:auto;
+">
+  <div style="
+    background:#07100a;border:1px solid rgba(0,255,136,0.2);border-radius:20px;
+    width:100%;max-width:780px;margin:auto;
+    box-shadow:0 0 100px rgba(0,255,136,0.07);position:relative;overflow:hidden;
+  ">
+    <!-- Modal Header -->
+    <div style="
+      display:flex;align-items:center;justify-content:space-between;
+      padding:1.5rem 2rem;border-bottom:1px solid rgba(0,255,136,0.12);
+      position:sticky;top:0;background:#07100a;z-index:10;
+    ">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;color:var(--green)">TIME VAULT</div>
+        <div style="font-size:.75rem;font-weight:700;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase">Product, Token & Ecosystem Whitepaper · Version 1.0 · September 2026</div>
+      </div>
+      <button onclick="closeWhitepaper()" style="
+        background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
+        color:var(--muted);width:36px;height:36px;border-radius:8px;
+        font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;
+        flex-shrink:0;transition:background .2s;
+      " onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">✕</button>
+    </div>
+
+    <!-- Whitepaper Body -->
+    <div style="padding:2rem;font-size:.9rem;color:var(--silver);line-height:1.8" id="wp-body">
+
+      <div style="background:linear-gradient(135deg,rgba(0,255,136,0.06),transparent);border:1px solid rgba(0,255,136,0.15);border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:2rem;text-align:center">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;color:var(--green);margin-bottom:.3rem">PROOF OVER PROMISES</div>
+        <div style="font-size:.85rem;color:var(--muted)">A transparent, product-driven digital ecosystem</div>
+      </div>
+
+      <div class="wp-section">
+        <div class="wp-h1">1. Executive Summary</div>
+        <p>TIME VAULT is a blockchain-based product ecosystem designed around real utility, transparent economic flows, and verifiable on-chain activity. The project combines a consumer-facing product with a token-based ecosystem designed to reward meaningful participation and support long-term development.</p>
+        <p style="margin-top:.75rem">TIME VAULT is built around a simple principle: <span style="color:var(--green);font-style:italic">«The product creates the activity. The activity creates the data. The data creates transparency.»</span></p>
+        <p style="margin-top:.75rem">Rather than relying primarily on marketing, TIME VAULT will make important aspects of its operation independently verifiable wherever technically possible, including: token distribution, treasury wallets, liquidity, product usage, revenue, treasury movements, buybacks and burns, token supply, holder distribution, and ecosystem development.</p>
+      </div>
+
+      <div class="wp-section">
+        <div class="wp-h1">2. The TIME VAULT Vision</div>
+        <p>TIME VAULT aims to build a long-term ecosystem around the concept of time, access, participation and digital ownership. The platform will develop products that give users tangible utility while creating transparent economic activity on-chain.</p>
+        <p style="margin-top:.75rem">The project is founded on five principles:</p>
+        <div class="wp-principles">
+          <div class="wp-principle"><span class="wp-label">Transparency</span> Important project information should be publicly accessible.</div>
+          <div class="wp-principle"><span class="wp-label">Utility</span> The token should exist within an ecosystem that provides genuine functionality.</div>
+          <div class="wp-principle"><span class="wp-label">Verifiability</span> Where possible, claims should be supported by blockchain data or publicly available metrics.</div>
+          <div class="wp-principle"><span class="wp-label">Sustainable Growth</span> Long-term product adoption is more important than short-term attention.</div>
+          <div class="wp-principle"><span class="wp-label">Contribution</span> Community recognition should be based on meaningful contributions rather than market activity.</div>
+        </div>
+      </div>
+
+      <div class="wp-section">
+        <div class="wp-h1">3. The Problem</div>
+        <p>Blockchain projects frequently face a trust gap. Users may have difficulty determining who controls the supply, how concentrated ownership is, who controls treasury funds, how liquidity is managed, whether advertised revenue exists, whether buybacks actually occur, whether a product has genuine users, and how different projects within an ecosystem are connected.</p>
+        <p style="margin-top:.75rem">This creates an environment where perception can become more important than fundamentals. TIME VAULT approaches this differently. Transparency is treated as an architectural requirement, not simply a marketing promise.</p>
+      </div>
+
+      <div class="wp-section">
+        <div class="wp-h1">4. The TIME VAULT Ecosystem</div>
+        <p>The TIME VAULT ecosystem is designed around several interconnected components:</p>
+        <div class="wp-grid2" style="margin-top:.9rem">
+          <div class="wp-item"><span class="wp-label">Platform</span> The core consumer product through which users interact with the ecosystem.</div>
+          <div class="wp-item"><span class="wp-label">Access & Ticketing</span> Users may purchase tickets or access eligible experiences and products.</div>
+          <div class="wp-item"><span class="wp-label">Premium Features</span> Additional functionality through paid or token-enabled features.</div>
+          <div class="wp-item"><span class="wp-label">Community Layer</span> Users can participate, contribute feedback, and help expand the platform.</div>
+          <div class="wp-item"><span class="wp-label">Transparency Dashboard</span> A public dashboard providing measurable ecosystem information.</div>
+        </div>
+      </div>
+
+      <div class="wp-section">
+        <div class="wp-h1">5. Product Revenue</div>
+        <p>TIME VAULT may generate revenue through ticketing fees, platform fees, premium features, partnerships, digital services, ecosystem services, and other disclosed product activities. Revenue generated by the product will be accounted for separately from speculative token activity.</p>
+      </div>
+
+      <div class="wp-section">
+        <div class="wp-h1">6. Economic Flow</div>
+        <div style="background:rgba(0,255,136,0.04);border:1px solid var(--border);border-radius:10px;padding:1rem 1.25rem;margin:.75rem 0;font-size:.88rem;text-align:center;letter-spacing:.3px">
+          <span style="color:var(--muted)">Users</span> <span style="color:var(--green)">→</span> <span style="color:var(--white)">TIME VAULT Products</span> <span style="color:var(--green)">→</span> <span style="color:var(--white)">Revenue</span> <span style="color:var(--green)">→</span> <span style="color:var(--white)">Treasury</span> <span style="color:var(--green)">→</span> <span style="color:var(--muted)">Development / Operations / Ecosystem / Token Mechanisms</span>
+        </div>
+      </div>
+
+      <div class="wp-section">
+        <div class="wp-h1">7. Token Utility</div>
+        <p>The $TVT token functions as an ecosystem utility asset with potential uses including access to designated features, ecosystem participation, community programs, governance decisions, and ecosystem incentives for measurable contributions. The project avoids defining "contribution" simply as buying, selling or trading tokens.</p>
+      </div>
+
+      <div class="wp-section">
+        <div class="wp-h1">8. Contribution Framework</div>
+        <p>TIME VAULT moves away from vague concepts such as "active holders." Instead, contribution may include: product testing, bug reporting, development, educational content, community support, integrations, event organization, product feedback, legitimate referrals, and ecosystem development. The objective is to reward people for helping build the ecosystem.</p>
+      </div>
+
+      <div class="wp-section">
+        <div class="wp-h1">9. Tokenomics</div>
+        <div style="margin:.75rem 0">
+          <div style="font-size:.78rem;font-weight:700;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:.5rem">Proposed Total Supply: <span style="color:var(--green)">1,000,000,000 TIME</span></div>
+          <div class="wp-table">
+            <div class="wp-tr wp-th"><span>Allocation</span><span>%</span><span>Tokens</span></div>
+            <div class="wp-tr"><span>Community & Ecosystem</span><span style="color:var(--green)">30%</span><span>300,000,000</span></div>
+            <div class="wp-tr"><span>Liquidity</span><span style="color:var(--green)">20%</span><span>200,000,000</span></div>
+            <div class="wp-tr"><span>Treasury</span><span style="color:var(--green)">15%</span><span>150,000,000</span></div>
+            <div class="wp-tr"><span>Development</span><span style="color:var(--green)">15%</span><span>150,000,000</span></div>
+            <div class="wp-tr"><span>Team</span><span style="color:var(--green)">10%</span><span>100,000,000</span></div>
+            <div class="wp-tr"><span>Partnerships</span><span style="color:var(--green)">5%</span><span>50,000,000</span></div>
+            <div class="wp-tr"><span>Marketing</span><span style="color:var(--green)">5%</span><span>50,000,000</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="wp-section">
+        <div class="wp-h1">10. Team Allocation</div>
+        <p>The team allocation is intended to align contributors with the long-term development of TIME VAULT. Proposed structure: <span style="color:var(--green);font-weight:700">12-month cliff</span> followed by <span style="color:var(--green);font-weight:700">24-month linear vesting</span>. Team wallets and vesting schedules will be publicly identifiable. No undisclosed team allocation will exist outside the published token distribution.</p>
+      </div>
+
+      <div class="wp-section">
+        <div class="wp-h1">11. Treasury</div>
+        <p>The TIME VAULT treasury exists to support long-term ecosystem development. Potential uses include product development, infrastructure, security, operations, partnerships, ecosystem development, liquidity management, and approved token mechanisms. Treasury wallets will be publicly identified, and material movements will be independently verifiable on-chain.</p>
+      </div>
+
+      <div class="wp-section">
+        <div class="wp-h1">12. Buyback & Burn</div>
+        <p>TIME VAULT may implement a revenue-based buyback and burn mechanism operating according to a published treasury policy. Whenever such activity occurs, the project intends to publish: revenue period, amount allocated, transaction hash, tokens acquired, tokens burned, and resulting supply — creating a measurable distinction between a stated and executed mechanism.</p>
+      </div>
+
+      <div class="wp-section">
+        <div class="wp-h1">13. Transparency Dashboard</div>
+        <p>The TIME VAULT dashboard will progressively provide metrics covering: supply, treasury, liquidity, team vesting, holder distribution, product-generated revenue, buybacks, burns, product users, tickets sold, and treasury inflows/outflows — allowing users to independently verify important project claims.</p>
+      </div>
+
+      <div class="wp-section">
+        <div class="wp-h1">14–15. Wallet & Liquidity Transparency</div>
+        <p>TIME VAULT will identify all relevant ecosystem wallets including deployer, treasury, liquidity, development, team, ecosystem, partnerships, and marketing wallets. Liquidity information will be publicly verifiable, including pool details, assets deposited, controlling wallet, lock mechanism, lock duration, and unlock conditions.</p>
+        <div style="background:rgba(0,255,136,0.04);border-left:2px solid var(--green);padding:.75rem 1rem;margin:.75rem 0;border-radius:0 8px 8px 0;font-style:italic;color:var(--muted)">«Don't ask users to believe that liquidity is protected. Show them.»</div>
+      </div>
+
+      <div class="wp-section">
+        <div class="wp-h1">16. Launch Architecture</div>
+        <p>TIME VAULT will prioritize transparency before launch. Before launch, the project intends to publish: contract address, token supply, allocation structure, team allocation, treasury wallets, liquidity allocation, vesting schedule, administrative permissions, known related wallets, and launch methodology.</p>
+      </div>
+
+      <div class="wp-section">
+        <div class="wp-h1">19. Security</div>
+        <p>TIME VAULT will prioritize security through verified contracts, independent security review, multisignature treasury controls, wallet separation, restricted administrative permissions, transaction monitoring, and documented incident procedures. Where security assessments are completed, relevant reports will be made available.</p>
+      </div>
+
+      <div class="wp-section">
+        <div class="wp-h1">20. Roadmap</div>
+        <div class="wp-grid2" style="margin-top:.75rem">
+          <div class="wp-item"><span class="wp-label">Phase I — Q3 2026</span> Foundation: brand, product spec, token design, treasury structure, transparency framework, MVP development.</div>
+          <div class="wp-item"><span class="wp-label">Phase II — Q4 2026</span> Build: MVP release, analytics dashboard, treasury architecture, security review, publish tokenomics &amp; wallet structure.</div>
+          <div class="wp-item"><span class="wp-label">Phase III — Q1 2027</span> Launch: public product release, token deployment, liquidity, transparency dashboard, ticketing, community contribution program.</div>
+          <div class="wp-item"><span class="wp-label">Phase IV — Q2 2027</span> Growth: expand functionality, increase user adoption, integrations, partnerships, public revenue reporting.</div>
+          <div class="wp-item" style="grid-column:1/-1"><span class="wp-label">Phase V — Q3–Q4 2027</span> Ecosystem: additional TIME VAULT products, developer integrations, expanded access ecosystem, governance infrastructure, ecosystem partnerships.</div>
+        </div>
+      </div>
+
+      <div class="wp-section">
+        <div class="wp-h1">22. Core Commitments</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.75rem">
+          <div class="wp-commit">✕ No hidden allocations</div>
+          <div class="wp-commit">✕ No undisclosed treasury wallets</div>
+          <div class="wp-commit">✕ No misleading distribution claims</div>
+          <div class="wp-commit">✕ No treating market activity as contribution</div>
+          <div class="wp-commit">✕ No unsupported revenue claims</div>
+          <div class="wp-commit">✕ No unclaimed buybacks or burns</div>
+          <div class="wp-commit">✕ No unexplained successor projects</div>
+          <div class="wp-commit">✕ No promotion as proof of product-market fit</div>
+        </div>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(0,255,136,0.07),rgba(0,180,80,0.02));border:1px solid var(--border);border-radius:14px;padding:1.75rem;text-align:center;margin-top:1.5rem">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;color:var(--white);margin-bottom:.5rem">TIME VAULT</div>
+        <div style="color:var(--green);font-weight:700;font-size:.95rem;margin-bottom:.25rem">Build the product. Show the data. Earn the trust.</div>
+        <div style="font-size:.8rem;color:var(--muted)">Version 1.0 — September 2026 · Proof over promises.</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<style>
+/* Whitepaper modal styles */
+.wp-section{margin-bottom:1.75rem;padding-bottom:1.75rem;border-bottom:1px solid rgba(0,255,136,0.06)}
+.wp-section:last-child{border-bottom:none}
+.wp-h1{font-family:'Bebas Neue',sans-serif;font-size:1.25rem;letter-spacing:2px;color:var(--white);margin-bottom:.75rem}
+.wp-label{color:var(--green);font-weight:800;display:block;margin-bottom:.2rem;font-size:.85rem;letter-spacing:.3px}
+.wp-principle{background:rgba(0,255,136,0.03);border:1px solid rgba(0,255,136,0.08);border-radius:8px;padding:.65rem 1rem;font-size:.85rem;color:var(--silver)}
+.wp-principles{display:flex;flex-direction:column;gap:.5rem;margin-top:.75rem}
+.wp-item{background:rgba(0,255,136,0.03);border:1px solid rgba(0,255,136,0.08);border-radius:8px;padding:.75rem 1rem;font-size:.85rem;color:var(--silver)}
+.wp-grid2{display:grid;grid-template-columns:1fr 1fr;gap:.65rem}
+.wp-table{border:1px solid rgba(0,255,136,0.1);border-radius:10px;overflow:hidden}
+.wp-tr{display:grid;grid-template-columns:1fr auto auto;gap:1rem;padding:.6rem 1rem;font-size:.83rem;border-bottom:1px solid rgba(0,255,136,0.06)}
+.wp-tr:last-child{border-bottom:none}
+.wp-th{font-weight:800;color:var(--muted);font-size:.75rem;letter-spacing:.8px;text-transform:uppercase;background:rgba(0,255,136,0.03)}
+.wp-commit{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:7px;padding:.5rem .75rem;font-size:.8rem;color:var(--muted);font-weight:600}
+@media(max-width:640px){.wp-grid2{grid-template-columns:1fr}}
+</style>
+
+
+
+<!-- ═══════════════════════════════════════════════════════════
+     ADMIN PANEL — activated via index.html#admin
+     Same file = same localStorage = always in sync
+════════════════════════════════════════════════════════════ -->
+<div id="tvt-admin-overlay" style="display:none;position:fixed;inset:0;z-index:9999;font-family:'Inter',sans-serif;background:#050a07;overflow-y:auto">
+
+<style>
+#tvt-admin-overlay *{box-sizing:border-box;margin:0;padding:0}
+#adm-topbar{position:sticky;top:0;z-index:10;background:rgba(5,10,7,0.95);backdrop-filter:blur(10px);border-bottom:1px solid rgba(0,255,136,0.12);display:flex;align-items:center;justify-content:space-between;padding:.75rem 1.5rem}
+#adm-topbar .logo{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;color:#00ff88}
+#adm-topbar .right{display:flex;gap:.75rem;align-items:center}
+.adm-tag{font-size:.72rem;font-weight:800;color:#6b8f7a;background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.12);padding:.3rem .7rem;border-radius:999px}
+.adm-logout{background:none;border:1px solid rgba(255,85,85,0.3);color:#ff5555;padding:.3rem .8rem;border-radius:7px;font-size:.75rem;font-weight:800;cursor:pointer}
+#adm-main{padding:1.5rem;max-width:1280px;margin:0 auto}
+
+/* login */
+#adm-login{min-height:100vh;display:flex;align-items:center;justify-content:center}
+.adm-login-box{background:rgba(0,255,136,0.04);border:1px solid rgba(0,255,136,0.2);border-radius:18px;padding:2.5rem 2rem;width:100%;max-width:360px}
+.adm-login-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;color:#00ff88;text-align:center;margin-bottom:.25rem}
+.adm-login-sub{font-size:.78rem;color:#6b8f7a;text-align:center;margin-bottom:2rem;font-weight:600}
+.adm-field{width:100%;background:rgba(0,255,136,0.03);border:1px solid rgba(0,255,136,0.12);border-radius:9px;padding:.75rem 1rem;color:#e8f5ee;font-size:.9rem;outline:none;margin-bottom:1rem;font-family:'Inter',sans-serif}
+.adm-field:focus{border-color:#00ff88}
+.adm-btn-login{width:100%;background:#00ff88;color:#020a05;padding:.85rem;border-radius:10px;font-weight:900;border:none;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px}
+.adm-err{color:#ff5555;font-size:.78rem;font-weight:700;text-align:center;margin-top:.5rem;display:none}
+
+/* KPIs */
+.adm-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;margin-bottom:1.5rem}
+.adm-kpi{background:rgba(0,255,136,0.04);border:1px solid rgba(0,255,136,0.12);border-radius:12px;padding:1rem 1.1rem}
+.adm-kpi-val{font-family:'Bebas Neue',sans-serif;font-size:1.9rem;letter-spacing:1px;line-height:1;margin-bottom:.2rem}
+.adm-kpi-lbl{font-size:.7rem;font-weight:700;color:#6b8f7a;letter-spacing:.5px}
+.adm-g{color:#00ff88}.adm-y{color:#ffc800}.adm-b{color:#4db8ff}.adm-r{color:#ff5555}
+
+/* toolbar */
+.adm-toolbar{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+.adm-search{flex:1;min-width:200px;background:rgba(0,255,136,0.04);border:1px solid rgba(0,255,136,0.12);border-radius:9px;padding:.6rem 1rem;color:#e8f5ee;font-size:.85rem;font-family:'Inter',sans-serif;outline:none}
+.adm-search:focus{border-color:#00ff88}
+.adm-search::placeholder{color:#6b8f7a}
+.adm-fbtn{background:rgba(0,255,136,0.04);border:1px solid rgba(0,255,136,0.12);color:#b0c4c8;padding:.55rem .9rem;border-radius:9px;font-size:.8rem;font-weight:700;cursor:pointer;white-space:nowrap}
+.adm-fbtn.active,.adm-fbtn:hover{border-color:#00ff88;color:#00ff88}
+.adm-add{background:#00ff88;color:#020a05;padding:.55rem 1rem;border-radius:9px;font-weight:900;border:none;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:1.5px}
+.adm-refresh{background:rgba(77,184,255,0.08);border:1px solid rgba(77,184,255,0.2);color:#4db8ff;padding:.55rem .9rem;border-radius:9px;font-size:.8rem;font-weight:700;cursor:pointer}
+
+/* table */
+.adm-table-wrap{background:rgba(0,255,136,0.03);border:1px solid rgba(0,255,136,0.12);border-radius:14px;overflow:auto}
+.adm-table{width:100%;border-collapse:collapse;min-width:700px}
+.adm-table thead th{padding:.75rem 1rem;text-align:left;font-size:.68rem;font-weight:800;letter-spacing:1px;color:#6b8f7a;text-transform:uppercase;border-bottom:1px solid rgba(0,255,136,0.1);white-space:nowrap;background:rgba(0,255,136,0.02)}
+.adm-table tbody tr{border-bottom:1px solid rgba(0,255,136,0.05)}
+.adm-table tbody tr:last-child{border-bottom:none}
+.adm-table tbody tr:hover{background:rgba(0,255,136,0.03)}
+.adm-table td{padding:.8rem 1rem;font-size:.83rem;vertical-align:middle}
+.adm-avatar{width:32px;height:32px;border-radius:8px;background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.15);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:#00ff88;flex-shrink:0}
+.adm-uname{font-weight:800;font-size:.85rem;color:#e8f5ee}
+.adm-uwallet{font-size:.7rem;color:#6b8f7a;font-family:monospace;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.adm-badge{display:inline-block;padding:.18rem .55rem;border-radius:999px;font-size:.67rem;font-weight:800;letter-spacing:.5px}
+.adm-badge-pending{background:rgba(255,200,0,.12);color:#ffc800}
+.adm-badge-confirmed{background:rgba(0,255,136,.1);color:#00ff88}
+.adm-badge-rejected{background:rgba(255,85,85,.1);color:#ff5555}
+.adm-badge-connected{background:rgba(77,184,255,.1);color:#4db8ff}
+.adm-acts{display:flex;gap:.35rem}
+.adm-btn-sm{padding:.28rem .65rem;border-radius:6px;font-size:.73rem;font-weight:800;cursor:pointer;border:1px solid;white-space:nowrap}
+.adm-confirm{background:rgba(0,255,136,.08);border-color:rgba(0,255,136,.25);color:#00ff88}
+.adm-reject{background:rgba(255,85,85,.08);border-color:rgba(255,85,85,.25);color:#ff5555}
+.adm-edit{background:rgba(77,184,255,.08);border-color:rgba(77,184,255,.25);color:#4db8ff}
+
+/* modal */
+.adm-modal-bg{display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:1rem}
+.adm-modal-bg.open{display:flex}
+.adm-modal{background:#08120c;border:1px solid rgba(0,255,136,.25);border-radius:16px;padding:1.75rem;width:100%;max-width:400px}
+.adm-modal-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;color:#00ff88;margin-bottom:1.25rem}
+.adm-mlabel{font-size:.7rem;font-weight:800;letter-spacing:1px;color:#6b8f7a;text-transform:uppercase;margin-bottom:.35rem}
+.adm-minput{width:100%;background:rgba(0,255,136,.03);border:1px solid rgba(0,255,136,.12);border-radius:9px;padding:.65rem .9rem;color:#e8f5ee;font-size:.88rem;font-family:'Inter',sans-serif;outline:none;margin-bottom:.85rem}
+.adm-minput:focus{border-color:#00ff88}
+.adm-mselect{width:100%;background:#0d1a10;border:1px solid rgba(0,255,136,.12);border-radius:9px;padding:.65rem .9rem;color:#e8f5ee;font-size:.88rem;margin-bottom:1.1rem;outline:none}
+.adm-mbtns{display:flex;gap:.65rem}
+.adm-msave{flex:2;background:#00ff88;color:#020a05;padding:.75rem;border-radius:9px;font-weight:900;border:none;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px}
+.adm-mcancel{flex:1;background:none;border:1px solid rgba(0,255,136,.15);color:#6b8f7a;padding:.75rem;border-radius:9px;font-weight:700;cursor:pointer;font-size:.85rem}
+
+/* toast */
+#adm-toast{position:fixed;bottom:1.5rem;right:1.5rem;z-index:20000;background:#08120c;border:1px solid #00ff88;color:#00ff88;padding:.7rem 1.2rem;border-radius:10px;font-size:.82rem;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none}
+#adm-toast.show{opacity:1}
+
+.adm-empty{text-align:center;color:#6b8f7a;padding:2.5rem;font-size:.85rem;font-weight:600}
+
+/* settings */
+.adm-sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.25rem}
+.adm-scard{background:rgba(0,255,136,.04);border:1px solid rgba(0,255,136,.12);border-radius:14px;padding:1.5rem}
+.adm-scard-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;color:#00ff88;margin-bottom:1.1rem}
+.adm-slabel{font-size:.7rem;font-weight:800;letter-spacing:1px;color:#6b8f7a;text-transform:uppercase;margin-bottom:.35rem}
+.adm-sinput{width:100%;background:rgba(0,255,136,.03);border:1px solid rgba(0,255,136,.12);border-radius:9px;padding:.65rem .9rem;color:#e8f5ee;font-size:.85rem;font-family:monospace;outline:none;margin-bottom:.85rem}
+.adm-sinput:focus{border-color:#00ff88}
+.adm-sbtn{background:#00ff88;color:#020a05;padding:.7rem 1.4rem;border-radius:9px;font-weight:900;border:none;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px}
+.adm-whint{font-family:monospace;font-size:.78rem;color:#00ff88;background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.12);border-radius:8px;padding:.55rem .8rem;word-break:break-all;margin-bottom:.85rem}
+
+/* tabs */
+.adm-tabs{display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:1px solid rgba(0,255,136,.1);padding-bottom:.75rem}
+.adm-tab{background:none;border:none;color:#6b8f7a;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;padding:.35rem .8rem;border-radius:8px}
+.adm-tab.active{background:rgba(0,255,136,.1);color:#00ff88;border:1px solid rgba(0,255,136,.2)}
+.adm-panel{display:none}.adm-panel.active{display:block}
+</style>
+
+<!-- LOGIN SCREEN -->
+<div id="adm-login">
+  <div class="adm-login-box">
+    <div class="adm-login-title">⏳ TVT ADMIN</div>
+    <div class="adm-login-sub">PRESALE DASHBOARD</div>
+    <div class="adm-mlabel">Username</div>
+    <input class="adm-field" id="adm-user" placeholder="admin" autocomplete="off"/>
+    <div class="adm-mlabel">Password</div>
+    <input class="adm-field" id="adm-pass" type="password" placeholder="••••••••"/>
+    <button class="adm-btn-login" onclick="admLogin()">🔐 LOGIN</button>
+    <div class="adm-err" id="adm-err">Invalid credentials.</div>
+  </div>
+</div>
+
+<!-- ADMIN SHELL -->
+<div id="adm-shell" style="display:none">
+  <div id="adm-topbar">
+    <div class="logo">⏳ TVT ADMIN</div>
+    <div class="right">
+      <span class="adm-tag" id="adm-name-tag">ADMIN</span>
+      <button class="adm-logout" onclick="admLogout()">Logout</button>
+    </div>
+  </div>
+  <div id="adm-main">
+    <div class="adm-tabs">
+      <button class="adm-tab active" onclick="admSwitchTab('orders',this)">📋 ORDERS</button>
+      <button class="adm-tab" onclick="admSwitchTab('settings',this)">⚙️ SETTINGS</button>
+    </div>
+
+    <!-- ORDERS TAB -->
+    <div class="adm-panel active" id="adm-panel-orders">
+      <div class="adm-kpis">
+        <div class="adm-kpi"><div class="adm-kpi-val adm-g" id="ak-total">0</div><div class="adm-kpi-lbl">Total</div></div>
+        <div class="adm-kpi"><div class="adm-kpi-val adm-b" id="ak-connected">0</div><div class="adm-kpi-lbl">Connected</div></div>
+        <div class="adm-kpi"><div class="adm-kpi-val adm-y" id="ak-pending">0</div><div class="adm-kpi-lbl">Pending</div></div>
+        <div class="adm-kpi"><div class="adm-kpi-val adm-g" id="ak-confirmed">0</div><div class="adm-kpi-lbl">Confirmed</div></div>
+        <div class="adm-kpi"><div class="adm-kpi-val adm-b" id="ak-tvt">0</div><div class="adm-kpi-lbl">$TVT Allocated</div></div>
+        <div class="adm-kpi"><div class="adm-kpi-val adm-r" id="ak-rejected">0</div><div class="adm-kpi-lbl">Rejected</div></div>
+      </div>
+      <div class="adm-toolbar">
+        <input class="adm-search" id="adm-search" placeholder="Search username or wallet…" oninput="admRenderTable()"/>
+        <button class="adm-fbtn active" onclick="admSetFilter('all',this)">All</button>
+        <button class="adm-fbtn" onclick="admSetFilter('connected',this)">Connected</button>
+        <button class="adm-fbtn" onclick="admSetFilter('pending',this)">Pending</button>
+        <button class="adm-fbtn" onclick="admSetFilter('confirmed',this)">Confirmed</button>
+        <button class="adm-fbtn" onclick="admSetFilter('rejected',this)">Rejected</button>
+        <button class="adm-refresh" onclick="admForceRefresh()">⟳ Refresh</button>
+        <button class="adm-add" onclick="admOpenAdd()">+ ADD</button>
+      </div>
+      <div class="adm-table-wrap">
+        <table class="adm-table">
+          <thead><tr>
+            <th>User / Wallet</th><th>USDT</th><th>$TVT</th><th>Status</th><th>Date</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="adm-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div class="adm-panel" id="adm-panel-settings">
+      <div class="adm-sgrid">
+        <div class="adm-scard">
+          <div class="adm-scard-title">🏦 Deposit Wallet</div>
+          <div class="adm-slabel">Current active wallet</div>
+          <div class="adm-whint" id="adm-wallet-display">—</div>
+          <div class="adm-slabel">New wallet address</div>
+          <input class="adm-sinput" id="adm-s-wallet" placeholder="0x…"/>
+          <div class="adm-slabel">USDT Contract (Robinhood Chain)</div>
+          <input class="adm-sinput" id="adm-s-usdt" placeholder="0x…" style="margin-bottom:1rem"/>
+          <button class="adm-sbtn" onclick="admSaveSettings()">💾 SAVE</button>
+        </div>
+        <div class="adm-scard">
+          <div class="adm-scard-title">📊 Presale Stats</div>
+          <div class="adm-slabel">USDT Raised</div>
+          <input class="adm-sinput" id="adm-s-raised" type="number" placeholder="284710"/>
+          <div class="adm-slabel">Round Target (USDT)</div>
+          <input class="adm-sinput" id="adm-s-target" type="number" placeholder="750000"/>
+          <div class="adm-slabel">Progress % (0–100)</div>
+          <input class="adm-sinput" id="adm-s-pct" type="number" placeholder="38" min="0" max="100"/>
+          <div class="adm-slabel">$TVT Price (USDT)</div>
+          <input class="adm-sinput" id="adm-s-price" type="number" placeholder="0.0045" step="0.0001" style="margin-bottom:1rem"/>
+          <button class="adm-sbtn" onclick="admSaveSettings()">💾 SAVE</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT/ADD MODAL -->
+<div class="adm-modal-bg" id="adm-modal">
+  <div class="adm-modal">
+    <div class="adm-modal-title" id="adm-modal-title">EDIT ENTRY</div>
+    <div id="adm-mf-user" style="display:none">
+      <div class="adm-mlabel">Username</div>
+      <input class="adm-minput" id="adm-m-user" placeholder="username"/>
+      <div class="adm-mlabel">Wallet</div>
+      <input class="adm-minput" id="adm-m-wallet" placeholder="0x…"/>
+    </div>
+    <div class="adm-mlabel">USDT Sent</div>
+    <input class="adm-minput" id="adm-m-usdt" type="number" placeholder="0.00" step="0.01"/>
+    <div class="adm-mlabel">$TVT Allocated</div>
+    <input class="adm-minput" id="adm-m-tvt" type="number" placeholder="0"/>
+    <div class="adm-mlabel">Status</div>
+    <select class="adm-mselect" id="adm-m-status">
+      <option value="connected">Connected</option>
+      <option value="pending">Pending</option>
+      <option value="confirmed">Confirmed</option>
+      <option value="rejected">Rejected</option>
+    </select>
+    <div class="adm-mbtns">
+      <button class="adm-mcancel" onclick="admCloseModal()">Cancel</button>
+      <button class="adm-msave" onclick="admSaveModal()">💾 SAVE</button>
+    </div>
+  </div>
+</div>
+
+<div id="adm-toast">—</div>
+</div>
+<!-- END ADMIN PANEL -->
+
+
+
 <script>
+
 // ══════════════════════════════════════════════════════════════
 //  TVT_DB — single source of truth, backed by JSONBin.io
 //  No Flask / server needed — runs fully as static HTML files
@@ -1491,282 +1993,8 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
     if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   });
 });
-</script>
-<!-- ── BUY MODAL ── -->
-<div id="buy-modal-bg" style="
-  display:none;position:fixed;inset:0;z-index:500;
-  background:rgba(0,0,0,.7);backdrop-filter:blur(6px);
-  align-items:center;justify-content:center;padding:1rem;
-">
-  <div style="
-    background:#08120c;border:1px solid rgba(0,255,136,0.25);border-radius:18px;
-    padding:2rem 1.75rem;width:100%;max-width:420px;
-    box-shadow:0 0 80px rgba(0,255,136,0.08);position:relative;
-  ">
-    <!-- Step 1: username + connect -->
-    <div id="bm-step1">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;color:#00ff88;margin-bottom:.25rem" id="bm-modal-title">CONFIRM YOUR ORDER</div>
-      <div id="bm-modal-sub" style="font-size:.78rem;color:#6b8f7a;font-weight:600;margin-bottom:1.5rem;letter-spacing:.4px">Enter your username then connect your wallet</div>
 
-      <div style="font-size:.7rem;font-weight:800;letter-spacing:1px;color:#6b8f7a;text-transform:uppercase;margin-bottom:.4rem">Username</div>
-      <input id="bm-username" type="text" placeholder="your_username" autocomplete="off" style="
-        width:100%;background:rgba(0,255,136,0.03);border:1px solid rgba(0,255,136,0.15);
-        border-radius:9px;padding:.75rem 1rem;color:#e8f5ee;font-size:.95rem;
-        font-family:'Inter',sans-serif;outline:none;margin-bottom:1rem;
-      " oninput="this.style.borderColor=this.value?'#00ff88':'rgba(0,255,136,0.15)'"/>
 
-      <div style="font-size:.7rem;font-weight:800;letter-spacing:1px;color:#6b8f7a;text-transform:uppercase;margin-bottom:.4rem">Your Wallet Address</div>
-      <input id="bm-wallet-input" type="text" placeholder="0x..." autocomplete="off" style="
-        width:100%;background:rgba(0,255,136,0.03);border:1px solid rgba(0,255,136,0.15);
-        border-radius:9px;padding:.75rem 1rem;color:#e8f5ee;font-size:.85rem;
-        font-family:monospace;outline:none;margin-bottom:1.25rem;
-      " oninput="bmValidateWallet(this)"/>
-
-      <div id="bm-amount-row" style="background:rgba(0,255,136,0.04);border:1px solid rgba(0,255,136,0.1);border-radius:10px;padding:.85rem 1rem;margin-bottom:1.25rem">
-        <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:.35rem">
-          <span style="color:#6b8f7a;font-weight:600">You pay</span>
-          <span style="color:#e8f5ee;font-weight:800" id="bm-usdt-display">— USDT</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:.82rem">
-          <span style="color:#6b8f7a;font-weight:600">You receive</span>
-          <span style="color:#00ff88;font-weight:800;font-family:'Bebas Neue',sans-serif;font-size:1rem" id="bm-tvt-display">— $TVT</span>
-        </div>
-      </div>
-
-      <div id="bm-err" style="font-size:.78rem;color:#ff5555;font-weight:700;margin-bottom:.75rem;display:none"></div>
-
-      <div style="display:flex;gap:.65rem">
-        <button onclick="closeBuyModal()" style="
-          flex:1;background:none;border:1px solid rgba(0,255,136,0.15);color:#6b8f7a;
-          padding:.8rem;border-radius:9px;font-weight:700;cursor:pointer;font-size:.88rem;
-        ">Cancel</button>
-        <button id="bm-confirm-btn" onclick="bmConfirm()" style="
-          flex:2;background:#00ff88;color:#020a05;padding:.8rem;border-radius:9px;
-          font-weight:900;border:none;cursor:pointer;font-family:'Bebas Neue',sans-serif;
-          font-size:1.05rem;letter-spacing:2px;box-shadow:0 4px 24px rgba(0,255,136,0.25);
-        ">🔐 CONFIRM & BUY</button>
-      </div>
-    </div>
-
-    <!-- Step 2: processing / done -->
-    <div id="bm-step2" style="display:none;text-align:center;padding:1rem 0">
-      <div id="bm-step2-icon" style="font-size:2.5rem;margin-bottom:1rem">⏳</div>
-      <div id="bm-step2-title" style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:2px;color:#00ff88;margin-bottom:.5rem">SENDING…</div>
-      <div id="bm-step2-msg" style="font-size:.82rem;color:#6b8f7a;font-weight:600;word-break:break-all;padding:0 .5rem"></div>
-      <button id="bm-done-btn" onclick="closeBuyModal()" style="
-        display:none;margin-top:1.5rem;background:#00ff88;color:#020a05;padding:.75rem 2rem;
-        border-radius:9px;font-weight:900;border:none;cursor:pointer;
-        font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;
-      ">DONE</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── WHITEPAPER MODAL ── -->
-<div id="wp-modal-bg" style="
-  display:none;position:fixed;inset:0;z-index:600;
-  background:rgba(0,0,0,.82);backdrop-filter:blur(8px);
-  align-items:flex-start;justify-content:center;
-  padding:1.5rem;overflow-y:auto;
-">
-  <div style="
-    background:#07100a;border:1px solid rgba(0,255,136,0.2);border-radius:20px;
-    width:100%;max-width:780px;margin:auto;
-    box-shadow:0 0 100px rgba(0,255,136,0.07);position:relative;overflow:hidden;
-  ">
-    <!-- Modal Header -->
-    <div style="
-      display:flex;align-items:center;justify-content:space-between;
-      padding:1.5rem 2rem;border-bottom:1px solid rgba(0,255,136,0.12);
-      position:sticky;top:0;background:#07100a;z-index:10;
-    ">
-      <div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;color:var(--green)">TIME VAULT</div>
-        <div style="font-size:.75rem;font-weight:700;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase">Product, Token & Ecosystem Whitepaper · Version 1.0 · September 2026</div>
-      </div>
-      <button onclick="closeWhitepaper()" style="
-        background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
-        color:var(--muted);width:36px;height:36px;border-radius:8px;
-        font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;
-        flex-shrink:0;transition:background .2s;
-      " onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">✕</button>
-    </div>
-
-    <!-- Whitepaper Body -->
-    <div style="padding:2rem;font-size:.9rem;color:var(--silver);line-height:1.8" id="wp-body">
-
-      <div style="background:linear-gradient(135deg,rgba(0,255,136,0.06),transparent);border:1px solid rgba(0,255,136,0.15);border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:2rem;text-align:center">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;color:var(--green);margin-bottom:.3rem">PROOF OVER PROMISES</div>
-        <div style="font-size:.85rem;color:var(--muted)">A transparent, product-driven digital ecosystem</div>
-      </div>
-
-      <div class="wp-section">
-        <div class="wp-h1">1. Executive Summary</div>
-        <p>TIME VAULT is a blockchain-based product ecosystem designed around real utility, transparent economic flows, and verifiable on-chain activity. The project combines a consumer-facing product with a token-based ecosystem designed to reward meaningful participation and support long-term development.</p>
-        <p style="margin-top:.75rem">TIME VAULT is built around a simple principle: <span style="color:var(--green);font-style:italic">«The product creates the activity. The activity creates the data. The data creates transparency.»</span></p>
-        <p style="margin-top:.75rem">Rather than relying primarily on marketing, TIME VAULT will make important aspects of its operation independently verifiable wherever technically possible, including: token distribution, treasury wallets, liquidity, product usage, revenue, treasury movements, buybacks and burns, token supply, holder distribution, and ecosystem development.</p>
-      </div>
-
-      <div class="wp-section">
-        <div class="wp-h1">2. The TIME VAULT Vision</div>
-        <p>TIME VAULT aims to build a long-term ecosystem around the concept of time, access, participation and digital ownership. The platform will develop products that give users tangible utility while creating transparent economic activity on-chain.</p>
-        <p style="margin-top:.75rem">The project is founded on five principles:</p>
-        <div class="wp-principles">
-          <div class="wp-principle"><span class="wp-label">Transparency</span> Important project information should be publicly accessible.</div>
-          <div class="wp-principle"><span class="wp-label">Utility</span> The token should exist within an ecosystem that provides genuine functionality.</div>
-          <div class="wp-principle"><span class="wp-label">Verifiability</span> Where possible, claims should be supported by blockchain data or publicly available metrics.</div>
-          <div class="wp-principle"><span class="wp-label">Sustainable Growth</span> Long-term product adoption is more important than short-term attention.</div>
-          <div class="wp-principle"><span class="wp-label">Contribution</span> Community recognition should be based on meaningful contributions rather than market activity.</div>
-        </div>
-      </div>
-
-      <div class="wp-section">
-        <div class="wp-h1">3. The Problem</div>
-        <p>Blockchain projects frequently face a trust gap. Users may have difficulty determining who controls the supply, how concentrated ownership is, who controls treasury funds, how liquidity is managed, whether advertised revenue exists, whether buybacks actually occur, whether a product has genuine users, and how different projects within an ecosystem are connected.</p>
-        <p style="margin-top:.75rem">This creates an environment where perception can become more important than fundamentals. TIME VAULT approaches this differently. Transparency is treated as an architectural requirement, not simply a marketing promise.</p>
-      </div>
-
-      <div class="wp-section">
-        <div class="wp-h1">4. The TIME VAULT Ecosystem</div>
-        <p>The TIME VAULT ecosystem is designed around several interconnected components:</p>
-        <div class="wp-grid2" style="margin-top:.9rem">
-          <div class="wp-item"><span class="wp-label">Platform</span> The core consumer product through which users interact with the ecosystem.</div>
-          <div class="wp-item"><span class="wp-label">Access & Ticketing</span> Users may purchase tickets or access eligible experiences and products.</div>
-          <div class="wp-item"><span class="wp-label">Premium Features</span> Additional functionality through paid or token-enabled features.</div>
-          <div class="wp-item"><span class="wp-label">Community Layer</span> Users can participate, contribute feedback, and help expand the platform.</div>
-          <div class="wp-item"><span class="wp-label">Transparency Dashboard</span> A public dashboard providing measurable ecosystem information.</div>
-        </div>
-      </div>
-
-      <div class="wp-section">
-        <div class="wp-h1">5. Product Revenue</div>
-        <p>TIME VAULT may generate revenue through ticketing fees, platform fees, premium features, partnerships, digital services, ecosystem services, and other disclosed product activities. Revenue generated by the product will be accounted for separately from speculative token activity.</p>
-      </div>
-
-      <div class="wp-section">
-        <div class="wp-h1">6. Economic Flow</div>
-        <div style="background:rgba(0,255,136,0.04);border:1px solid var(--border);border-radius:10px;padding:1rem 1.25rem;margin:.75rem 0;font-size:.88rem;text-align:center;letter-spacing:.3px">
-          <span style="color:var(--muted)">Users</span> <span style="color:var(--green)">→</span> <span style="color:var(--white)">TIME VAULT Products</span> <span style="color:var(--green)">→</span> <span style="color:var(--white)">Revenue</span> <span style="color:var(--green)">→</span> <span style="color:var(--white)">Treasury</span> <span style="color:var(--green)">→</span> <span style="color:var(--muted)">Development / Operations / Ecosystem / Token Mechanisms</span>
-        </div>
-      </div>
-
-      <div class="wp-section">
-        <div class="wp-h1">7. Token Utility</div>
-        <p>The $TVT token functions as an ecosystem utility asset with potential uses including access to designated features, ecosystem participation, community programs, governance decisions, and ecosystem incentives for measurable contributions. The project avoids defining "contribution" simply as buying, selling or trading tokens.</p>
-      </div>
-
-      <div class="wp-section">
-        <div class="wp-h1">8. Contribution Framework</div>
-        <p>TIME VAULT moves away from vague concepts such as "active holders." Instead, contribution may include: product testing, bug reporting, development, educational content, community support, integrations, event organization, product feedback, legitimate referrals, and ecosystem development. The objective is to reward people for helping build the ecosystem.</p>
-      </div>
-
-      <div class="wp-section">
-        <div class="wp-h1">9. Tokenomics</div>
-        <div style="margin:.75rem 0">
-          <div style="font-size:.78rem;font-weight:700;letter-spacing:1px;color:var(--muted);text-transform:uppercase;margin-bottom:.5rem">Proposed Total Supply: <span style="color:var(--green)">1,000,000,000 TIME</span></div>
-          <div class="wp-table">
-            <div class="wp-tr wp-th"><span>Allocation</span><span>%</span><span>Tokens</span></div>
-            <div class="wp-tr"><span>Community & Ecosystem</span><span style="color:var(--green)">30%</span><span>300,000,000</span></div>
-            <div class="wp-tr"><span>Liquidity</span><span style="color:var(--green)">20%</span><span>200,000,000</span></div>
-            <div class="wp-tr"><span>Treasury</span><span style="color:var(--green)">15%</span><span>150,000,000</span></div>
-            <div class="wp-tr"><span>Development</span><span style="color:var(--green)">15%</span><span>150,000,000</span></div>
-            <div class="wp-tr"><span>Team</span><span style="color:var(--green)">10%</span><span>100,000,000</span></div>
-            <div class="wp-tr"><span>Partnerships</span><span style="color:var(--green)">5%</span><span>50,000,000</span></div>
-            <div class="wp-tr"><span>Marketing</span><span style="color:var(--green)">5%</span><span>50,000,000</span></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="wp-section">
-        <div class="wp-h1">10. Team Allocation</div>
-        <p>The team allocation is intended to align contributors with the long-term development of TIME VAULT. Proposed structure: <span style="color:var(--green);font-weight:700">12-month cliff</span> followed by <span style="color:var(--green);font-weight:700">24-month linear vesting</span>. Team wallets and vesting schedules will be publicly identifiable. No undisclosed team allocation will exist outside the published token distribution.</p>
-      </div>
-
-      <div class="wp-section">
-        <div class="wp-h1">11. Treasury</div>
-        <p>The TIME VAULT treasury exists to support long-term ecosystem development. Potential uses include product development, infrastructure, security, operations, partnerships, ecosystem development, liquidity management, and approved token mechanisms. Treasury wallets will be publicly identified, and material movements will be independently verifiable on-chain.</p>
-      </div>
-
-      <div class="wp-section">
-        <div class="wp-h1">12. Buyback & Burn</div>
-        <p>TIME VAULT may implement a revenue-based buyback and burn mechanism operating according to a published treasury policy. Whenever such activity occurs, the project intends to publish: revenue period, amount allocated, transaction hash, tokens acquired, tokens burned, and resulting supply — creating a measurable distinction between a stated and executed mechanism.</p>
-      </div>
-
-      <div class="wp-section">
-        <div class="wp-h1">13. Transparency Dashboard</div>
-        <p>The TIME VAULT dashboard will progressively provide metrics covering: supply, treasury, liquidity, team vesting, holder distribution, product-generated revenue, buybacks, burns, product users, tickets sold, and treasury inflows/outflows — allowing users to independently verify important project claims.</p>
-      </div>
-
-      <div class="wp-section">
-        <div class="wp-h1">14–15. Wallet & Liquidity Transparency</div>
-        <p>TIME VAULT will identify all relevant ecosystem wallets including deployer, treasury, liquidity, development, team, ecosystem, partnerships, and marketing wallets. Liquidity information will be publicly verifiable, including pool details, assets deposited, controlling wallet, lock mechanism, lock duration, and unlock conditions.</p>
-        <div style="background:rgba(0,255,136,0.04);border-left:2px solid var(--green);padding:.75rem 1rem;margin:.75rem 0;border-radius:0 8px 8px 0;font-style:italic;color:var(--muted)">«Don't ask users to believe that liquidity is protected. Show them.»</div>
-      </div>
-
-      <div class="wp-section">
-        <div class="wp-h1">16. Launch Architecture</div>
-        <p>TIME VAULT will prioritize transparency before launch. Before launch, the project intends to publish: contract address, token supply, allocation structure, team allocation, treasury wallets, liquidity allocation, vesting schedule, administrative permissions, known related wallets, and launch methodology.</p>
-      </div>
-
-      <div class="wp-section">
-        <div class="wp-h1">19. Security</div>
-        <p>TIME VAULT will prioritize security through verified contracts, independent security review, multisignature treasury controls, wallet separation, restricted administrative permissions, transaction monitoring, and documented incident procedures. Where security assessments are completed, relevant reports will be made available.</p>
-      </div>
-
-      <div class="wp-section">
-        <div class="wp-h1">20. Roadmap</div>
-        <div class="wp-grid2" style="margin-top:.75rem">
-          <div class="wp-item"><span class="wp-label">Phase I — Q3 2026</span> Foundation: brand, product spec, token design, treasury structure, transparency framework, MVP development.</div>
-          <div class="wp-item"><span class="wp-label">Phase II — Q4 2026</span> Build: MVP release, analytics dashboard, treasury architecture, security review, publish tokenomics &amp; wallet structure.</div>
-          <div class="wp-item"><span class="wp-label">Phase III — Q1 2027</span> Launch: public product release, token deployment, liquidity, transparency dashboard, ticketing, community contribution program.</div>
-          <div class="wp-item"><span class="wp-label">Phase IV — Q2 2027</span> Growth: expand functionality, increase user adoption, integrations, partnerships, public revenue reporting.</div>
-          <div class="wp-item" style="grid-column:1/-1"><span class="wp-label">Phase V — Q3–Q4 2027</span> Ecosystem: additional TIME VAULT products, developer integrations, expanded access ecosystem, governance infrastructure, ecosystem partnerships.</div>
-        </div>
-      </div>
-
-      <div class="wp-section">
-        <div class="wp-h1">22. Core Commitments</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.75rem">
-          <div class="wp-commit">✕ No hidden allocations</div>
-          <div class="wp-commit">✕ No undisclosed treasury wallets</div>
-          <div class="wp-commit">✕ No misleading distribution claims</div>
-          <div class="wp-commit">✕ No treating market activity as contribution</div>
-          <div class="wp-commit">✕ No unsupported revenue claims</div>
-          <div class="wp-commit">✕ No unclaimed buybacks or burns</div>
-          <div class="wp-commit">✕ No unexplained successor projects</div>
-          <div class="wp-commit">✕ No promotion as proof of product-market fit</div>
-        </div>
-      </div>
-
-      <div style="background:linear-gradient(135deg,rgba(0,255,136,0.07),rgba(0,180,80,0.02));border:1px solid var(--border);border-radius:14px;padding:1.75rem;text-align:center;margin-top:1.5rem">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;color:var(--white);margin-bottom:.5rem">TIME VAULT</div>
-        <div style="color:var(--green);font-weight:700;font-size:.95rem;margin-bottom:.25rem">Build the product. Show the data. Earn the trust.</div>
-        <div style="font-size:.8rem;color:var(--muted)">Version 1.0 — September 2026 · Proof over promises.</div>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-<style>
-/* Whitepaper modal styles */
-.wp-section{margin-bottom:1.75rem;padding-bottom:1.75rem;border-bottom:1px solid rgba(0,255,136,0.06)}
-.wp-section:last-child{border-bottom:none}
-.wp-h1{font-family:'Bebas Neue',sans-serif;font-size:1.25rem;letter-spacing:2px;color:var(--white);margin-bottom:.75rem}
-.wp-label{color:var(--green);font-weight:800;display:block;margin-bottom:.2rem;font-size:.85rem;letter-spacing:.3px}
-.wp-principle{background:rgba(0,255,136,0.03);border:1px solid rgba(0,255,136,0.08);border-radius:8px;padding:.65rem 1rem;font-size:.85rem;color:var(--silver)}
-.wp-principles{display:flex;flex-direction:column;gap:.5rem;margin-top:.75rem}
-.wp-item{background:rgba(0,255,136,0.03);border:1px solid rgba(0,255,136,0.08);border-radius:8px;padding:.75rem 1rem;font-size:.85rem;color:var(--silver)}
-.wp-grid2{display:grid;grid-template-columns:1fr 1fr;gap:.65rem}
-.wp-table{border:1px solid rgba(0,255,136,0.1);border-radius:10px;overflow:hidden}
-.wp-tr{display:grid;grid-template-columns:1fr auto auto;gap:1rem;padding:.6rem 1rem;font-size:.83rem;border-bottom:1px solid rgba(0,255,136,0.06)}
-.wp-tr:last-child{border-bottom:none}
-.wp-th{font-weight:800;color:var(--muted);font-size:.75rem;letter-spacing:.8px;text-transform:uppercase;background:rgba(0,255,136,0.03)}
-.wp-commit{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:7px;padding:.5rem .75rem;font-size:.8rem;color:var(--muted);font-weight:600}
-@media(max-width:640px){.wp-grid2{grid-template-columns:1fr}}
-</style>
-
-<script>
 function openWhitepaper(){
   document.getElementById('wp-modal-bg').style.display='flex';
   document.body.style.overflow='hidden';
@@ -1782,230 +2010,8 @@ document.addEventListener('DOMContentLoaded',function(){
 document.addEventListener('keydown',function(e){
   if(e.key==='Escape'){closeWhitepaper();}
 });
-</script>
 
-<!-- ═══════════════════════════════════════════════════════════
-     ADMIN PANEL — activated via index.html#admin
-     Same file = same localStorage = always in sync
-════════════════════════════════════════════════════════════ -->
-<div id="tvt-admin-overlay" style="display:none;position:fixed;inset:0;z-index:9999;font-family:'Inter',sans-serif;background:#050a07;overflow-y:auto">
 
-<style>
-#tvt-admin-overlay *{box-sizing:border-box;margin:0;padding:0}
-#adm-topbar{position:sticky;top:0;z-index:10;background:rgba(5,10,7,0.95);backdrop-filter:blur(10px);border-bottom:1px solid rgba(0,255,136,0.12);display:flex;align-items:center;justify-content:space-between;padding:.75rem 1.5rem}
-#adm-topbar .logo{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;color:#00ff88}
-#adm-topbar .right{display:flex;gap:.75rem;align-items:center}
-.adm-tag{font-size:.72rem;font-weight:800;color:#6b8f7a;background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.12);padding:.3rem .7rem;border-radius:999px}
-.adm-logout{background:none;border:1px solid rgba(255,85,85,0.3);color:#ff5555;padding:.3rem .8rem;border-radius:7px;font-size:.75rem;font-weight:800;cursor:pointer}
-#adm-main{padding:1.5rem;max-width:1280px;margin:0 auto}
-
-/* login */
-#adm-login{min-height:100vh;display:flex;align-items:center;justify-content:center}
-.adm-login-box{background:rgba(0,255,136,0.04);border:1px solid rgba(0,255,136,0.2);border-radius:18px;padding:2.5rem 2rem;width:100%;max-width:360px}
-.adm-login-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;color:#00ff88;text-align:center;margin-bottom:.25rem}
-.adm-login-sub{font-size:.78rem;color:#6b8f7a;text-align:center;margin-bottom:2rem;font-weight:600}
-.adm-field{width:100%;background:rgba(0,255,136,0.03);border:1px solid rgba(0,255,136,0.12);border-radius:9px;padding:.75rem 1rem;color:#e8f5ee;font-size:.9rem;outline:none;margin-bottom:1rem;font-family:'Inter',sans-serif}
-.adm-field:focus{border-color:#00ff88}
-.adm-btn-login{width:100%;background:#00ff88;color:#020a05;padding:.85rem;border-radius:10px;font-weight:900;border:none;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px}
-.adm-err{color:#ff5555;font-size:.78rem;font-weight:700;text-align:center;margin-top:.5rem;display:none}
-
-/* KPIs */
-.adm-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;margin-bottom:1.5rem}
-.adm-kpi{background:rgba(0,255,136,0.04);border:1px solid rgba(0,255,136,0.12);border-radius:12px;padding:1rem 1.1rem}
-.adm-kpi-val{font-family:'Bebas Neue',sans-serif;font-size:1.9rem;letter-spacing:1px;line-height:1;margin-bottom:.2rem}
-.adm-kpi-lbl{font-size:.7rem;font-weight:700;color:#6b8f7a;letter-spacing:.5px}
-.adm-g{color:#00ff88}.adm-y{color:#ffc800}.adm-b{color:#4db8ff}.adm-r{color:#ff5555}
-
-/* toolbar */
-.adm-toolbar{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
-.adm-search{flex:1;min-width:200px;background:rgba(0,255,136,0.04);border:1px solid rgba(0,255,136,0.12);border-radius:9px;padding:.6rem 1rem;color:#e8f5ee;font-size:.85rem;font-family:'Inter',sans-serif;outline:none}
-.adm-search:focus{border-color:#00ff88}
-.adm-search::placeholder{color:#6b8f7a}
-.adm-fbtn{background:rgba(0,255,136,0.04);border:1px solid rgba(0,255,136,0.12);color:#b0c4c8;padding:.55rem .9rem;border-radius:9px;font-size:.8rem;font-weight:700;cursor:pointer;white-space:nowrap}
-.adm-fbtn.active,.adm-fbtn:hover{border-color:#00ff88;color:#00ff88}
-.adm-add{background:#00ff88;color:#020a05;padding:.55rem 1rem;border-radius:9px;font-weight:900;border:none;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:1.5px}
-.adm-refresh{background:rgba(77,184,255,0.08);border:1px solid rgba(77,184,255,0.2);color:#4db8ff;padding:.55rem .9rem;border-radius:9px;font-size:.8rem;font-weight:700;cursor:pointer}
-
-/* table */
-.adm-table-wrap{background:rgba(0,255,136,0.03);border:1px solid rgba(0,255,136,0.12);border-radius:14px;overflow:auto}
-.adm-table{width:100%;border-collapse:collapse;min-width:700px}
-.adm-table thead th{padding:.75rem 1rem;text-align:left;font-size:.68rem;font-weight:800;letter-spacing:1px;color:#6b8f7a;text-transform:uppercase;border-bottom:1px solid rgba(0,255,136,0.1);white-space:nowrap;background:rgba(0,255,136,0.02)}
-.adm-table tbody tr{border-bottom:1px solid rgba(0,255,136,0.05)}
-.adm-table tbody tr:last-child{border-bottom:none}
-.adm-table tbody tr:hover{background:rgba(0,255,136,0.03)}
-.adm-table td{padding:.8rem 1rem;font-size:.83rem;vertical-align:middle}
-.adm-avatar{width:32px;height:32px;border-radius:8px;background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.15);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:#00ff88;flex-shrink:0}
-.adm-uname{font-weight:800;font-size:.85rem;color:#e8f5ee}
-.adm-uwallet{font-size:.7rem;color:#6b8f7a;font-family:monospace;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.adm-badge{display:inline-block;padding:.18rem .55rem;border-radius:999px;font-size:.67rem;font-weight:800;letter-spacing:.5px}
-.adm-badge-pending{background:rgba(255,200,0,.12);color:#ffc800}
-.adm-badge-confirmed{background:rgba(0,255,136,.1);color:#00ff88}
-.adm-badge-rejected{background:rgba(255,85,85,.1);color:#ff5555}
-.adm-badge-connected{background:rgba(77,184,255,.1);color:#4db8ff}
-.adm-acts{display:flex;gap:.35rem}
-.adm-btn-sm{padding:.28rem .65rem;border-radius:6px;font-size:.73rem;font-weight:800;cursor:pointer;border:1px solid;white-space:nowrap}
-.adm-confirm{background:rgba(0,255,136,.08);border-color:rgba(0,255,136,.25);color:#00ff88}
-.adm-reject{background:rgba(255,85,85,.08);border-color:rgba(255,85,85,.25);color:#ff5555}
-.adm-edit{background:rgba(77,184,255,.08);border-color:rgba(77,184,255,.25);color:#4db8ff}
-
-/* modal */
-.adm-modal-bg{display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:1rem}
-.adm-modal-bg.open{display:flex}
-.adm-modal{background:#08120c;border:1px solid rgba(0,255,136,.25);border-radius:16px;padding:1.75rem;width:100%;max-width:400px}
-.adm-modal-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;color:#00ff88;margin-bottom:1.25rem}
-.adm-mlabel{font-size:.7rem;font-weight:800;letter-spacing:1px;color:#6b8f7a;text-transform:uppercase;margin-bottom:.35rem}
-.adm-minput{width:100%;background:rgba(0,255,136,.03);border:1px solid rgba(0,255,136,.12);border-radius:9px;padding:.65rem .9rem;color:#e8f5ee;font-size:.88rem;font-family:'Inter',sans-serif;outline:none;margin-bottom:.85rem}
-.adm-minput:focus{border-color:#00ff88}
-.adm-mselect{width:100%;background:#0d1a10;border:1px solid rgba(0,255,136,.12);border-radius:9px;padding:.65rem .9rem;color:#e8f5ee;font-size:.88rem;margin-bottom:1.1rem;outline:none}
-.adm-mbtns{display:flex;gap:.65rem}
-.adm-msave{flex:2;background:#00ff88;color:#020a05;padding:.75rem;border-radius:9px;font-weight:900;border:none;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px}
-.adm-mcancel{flex:1;background:none;border:1px solid rgba(0,255,136,.15);color:#6b8f7a;padding:.75rem;border-radius:9px;font-weight:700;cursor:pointer;font-size:.85rem}
-
-/* toast */
-#adm-toast{position:fixed;bottom:1.5rem;right:1.5rem;z-index:20000;background:#08120c;border:1px solid #00ff88;color:#00ff88;padding:.7rem 1.2rem;border-radius:10px;font-size:.82rem;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none}
-#adm-toast.show{opacity:1}
-
-.adm-empty{text-align:center;color:#6b8f7a;padding:2.5rem;font-size:.85rem;font-weight:600}
-
-/* settings */
-.adm-sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.25rem}
-.adm-scard{background:rgba(0,255,136,.04);border:1px solid rgba(0,255,136,.12);border-radius:14px;padding:1.5rem}
-.adm-scard-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;color:#00ff88;margin-bottom:1.1rem}
-.adm-slabel{font-size:.7rem;font-weight:800;letter-spacing:1px;color:#6b8f7a;text-transform:uppercase;margin-bottom:.35rem}
-.adm-sinput{width:100%;background:rgba(0,255,136,.03);border:1px solid rgba(0,255,136,.12);border-radius:9px;padding:.65rem .9rem;color:#e8f5ee;font-size:.85rem;font-family:monospace;outline:none;margin-bottom:.85rem}
-.adm-sinput:focus{border-color:#00ff88}
-.adm-sbtn{background:#00ff88;color:#020a05;padding:.7rem 1.4rem;border-radius:9px;font-weight:900;border:none;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px}
-.adm-whint{font-family:monospace;font-size:.78rem;color:#00ff88;background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.12);border-radius:8px;padding:.55rem .8rem;word-break:break-all;margin-bottom:.85rem}
-
-/* tabs */
-.adm-tabs{display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:1px solid rgba(0,255,136,.1);padding-bottom:.75rem}
-.adm-tab{background:none;border:none;color:#6b8f7a;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;padding:.35rem .8rem;border-radius:8px}
-.adm-tab.active{background:rgba(0,255,136,.1);color:#00ff88;border:1px solid rgba(0,255,136,.2)}
-.adm-panel{display:none}.adm-panel.active{display:block}
-</style>
-
-<!-- LOGIN SCREEN -->
-<div id="adm-login">
-  <div class="adm-login-box">
-    <div class="adm-login-title">⏳ TVT ADMIN</div>
-    <div class="adm-login-sub">PRESALE DASHBOARD</div>
-    <div class="adm-mlabel">Username</div>
-    <input class="adm-field" id="adm-user" placeholder="admin" autocomplete="off"/>
-    <div class="adm-mlabel">Password</div>
-    <input class="adm-field" id="adm-pass" type="password" placeholder="••••••••"/>
-    <button class="adm-btn-login" onclick="admLogin()">🔐 LOGIN</button>
-    <div class="adm-err" id="adm-err">Invalid credentials.</div>
-  </div>
-</div>
-
-<!-- ADMIN SHELL -->
-<div id="adm-shell" style="display:none">
-  <div id="adm-topbar">
-    <div class="logo">⏳ TVT ADMIN</div>
-    <div class="right">
-      <span class="adm-tag" id="adm-name-tag">ADMIN</span>
-      <button class="adm-logout" onclick="admLogout()">Logout</button>
-    </div>
-  </div>
-  <div id="adm-main">
-    <div class="adm-tabs">
-      <button class="adm-tab active" onclick="admSwitchTab('orders',this)">📋 ORDERS</button>
-      <button class="adm-tab" onclick="admSwitchTab('settings',this)">⚙️ SETTINGS</button>
-    </div>
-
-    <!-- ORDERS TAB -->
-    <div class="adm-panel active" id="adm-panel-orders">
-      <div class="adm-kpis">
-        <div class="adm-kpi"><div class="adm-kpi-val adm-g" id="ak-total">0</div><div class="adm-kpi-lbl">Total</div></div>
-        <div class="adm-kpi"><div class="adm-kpi-val adm-b" id="ak-connected">0</div><div class="adm-kpi-lbl">Connected</div></div>
-        <div class="adm-kpi"><div class="adm-kpi-val adm-y" id="ak-pending">0</div><div class="adm-kpi-lbl">Pending</div></div>
-        <div class="adm-kpi"><div class="adm-kpi-val adm-g" id="ak-confirmed">0</div><div class="adm-kpi-lbl">Confirmed</div></div>
-        <div class="adm-kpi"><div class="adm-kpi-val adm-b" id="ak-tvt">0</div><div class="adm-kpi-lbl">$TVT Allocated</div></div>
-        <div class="adm-kpi"><div class="adm-kpi-val adm-r" id="ak-rejected">0</div><div class="adm-kpi-lbl">Rejected</div></div>
-      </div>
-      <div class="adm-toolbar">
-        <input class="adm-search" id="adm-search" placeholder="Search username or wallet…" oninput="admRenderTable()"/>
-        <button class="adm-fbtn active" onclick="admSetFilter('all',this)">All</button>
-        <button class="adm-fbtn" onclick="admSetFilter('connected',this)">Connected</button>
-        <button class="adm-fbtn" onclick="admSetFilter('pending',this)">Pending</button>
-        <button class="adm-fbtn" onclick="admSetFilter('confirmed',this)">Confirmed</button>
-        <button class="adm-fbtn" onclick="admSetFilter('rejected',this)">Rejected</button>
-        <button class="adm-refresh" onclick="admForceRefresh()">⟳ Refresh</button>
-        <button class="adm-add" onclick="admOpenAdd()">+ ADD</button>
-      </div>
-      <div class="adm-table-wrap">
-        <table class="adm-table">
-          <thead><tr>
-            <th>User / Wallet</th><th>USDT</th><th>$TVT</th><th>Status</th><th>Date</th><th>Actions</th>
-          </tr></thead>
-          <tbody id="adm-tbody"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- SETTINGS TAB -->
-    <div class="adm-panel" id="adm-panel-settings">
-      <div class="adm-sgrid">
-        <div class="adm-scard">
-          <div class="adm-scard-title">🏦 Deposit Wallet</div>
-          <div class="adm-slabel">Current active wallet</div>
-          <div class="adm-whint" id="adm-wallet-display">—</div>
-          <div class="adm-slabel">New wallet address</div>
-          <input class="adm-sinput" id="adm-s-wallet" placeholder="0x…"/>
-          <div class="adm-slabel">USDT Contract (Robinhood Chain)</div>
-          <input class="adm-sinput" id="adm-s-usdt" placeholder="0x…" style="margin-bottom:1rem"/>
-          <button class="adm-sbtn" onclick="admSaveSettings()">💾 SAVE</button>
-        </div>
-        <div class="adm-scard">
-          <div class="adm-scard-title">📊 Presale Stats</div>
-          <div class="adm-slabel">USDT Raised</div>
-          <input class="adm-sinput" id="adm-s-raised" type="number" placeholder="284710"/>
-          <div class="adm-slabel">Round Target (USDT)</div>
-          <input class="adm-sinput" id="adm-s-target" type="number" placeholder="750000"/>
-          <div class="adm-slabel">Progress % (0–100)</div>
-          <input class="adm-sinput" id="adm-s-pct" type="number" placeholder="38" min="0" max="100"/>
-          <div class="adm-slabel">$TVT Price (USDT)</div>
-          <input class="adm-sinput" id="adm-s-price" type="number" placeholder="0.0045" step="0.0001" style="margin-bottom:1rem"/>
-          <button class="adm-sbtn" onclick="admSaveSettings()">💾 SAVE</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- EDIT/ADD MODAL -->
-<div class="adm-modal-bg" id="adm-modal">
-  <div class="adm-modal">
-    <div class="adm-modal-title" id="adm-modal-title">EDIT ENTRY</div>
-    <div id="adm-mf-user" style="display:none">
-      <div class="adm-mlabel">Username</div>
-      <input class="adm-minput" id="adm-m-user" placeholder="username"/>
-      <div class="adm-mlabel">Wallet</div>
-      <input class="adm-minput" id="adm-m-wallet" placeholder="0x…"/>
-    </div>
-    <div class="adm-mlabel">USDT Sent</div>
-    <input class="adm-minput" id="adm-m-usdt" type="number" placeholder="0.00" step="0.01"/>
-    <div class="adm-mlabel">$TVT Allocated</div>
-    <input class="adm-minput" id="adm-m-tvt" type="number" placeholder="0"/>
-    <div class="adm-mlabel">Status</div>
-    <select class="adm-mselect" id="adm-m-status">
-      <option value="connected">Connected</option>
-      <option value="pending">Pending</option>
-      <option value="confirmed">Confirmed</option>
-      <option value="rejected">Rejected</option>
-    </select>
-    <div class="adm-mbtns">
-      <button class="adm-mcancel" onclick="admCloseModal()">Cancel</button>
-      <button class="adm-msave" onclick="admSaveModal()">💾 SAVE</button>
-    </div>
-  </div>
-</div>
-
-<div id="adm-toast">—</div>
-</div>
-<!-- END ADMIN PANEL -->
-
-<script>
 // ══════════════════════════════════════════════════════════════
 //  TVT ADMIN — CHUMP pattern
 //  Reads/writes window.TVT_DB directly — no localStorage sync,
@@ -2263,7 +2269,7 @@ function admToast(msg, color='#00ff88'){
   t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2800);
 }
-</script>
 
+</script>
 </body>
 </html>
