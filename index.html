@@ -670,7 +670,10 @@ body{
         <div class="wc-avatar" id="wc-avatar">?</div>
         <div class="wc-user-info">
           <div class="wc-username" id="wc-username">Guest</div>
-          <div class="wc-addr-line" id="wc-addr-display">Not connected</div>
+          <div class="wc-addr-line" style="display:flex;align-items:center;gap:.4rem">
+            <span id="wc-addr-display">Not connected</span>
+            <button id="wc-addr-copy-btn" onclick="copyWalletAddr()" title="Copy address" style="display:none;background:none;border:none;cursor:pointer;padding:0;line-height:1;color:#00ff88;font-size:.85rem;opacity:.7;transition:opacity .2s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">⧉</button>
+          </div>
         </div>
         <button class="wc-connect-btn" id="wc-connect-btn" onclick="openConnectWallet()">Connect</button>
       </div>
@@ -1136,6 +1139,10 @@ body{
       <div id="bm-step2-icon" style="font-size:2.5rem;margin-bottom:1rem">⏳</div>
       <div id="bm-step2-title" style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:2px;color:#00ff88;margin-bottom:.5rem">SENDING…</div>
       <div id="bm-step2-msg" style="font-size:.82rem;color:#6b8f7a;font-weight:600;word-break:break-all;padding:0 .5rem"></div>
+      <div id="bm-step2-addr-wrap" style="display:none;margin:.75rem auto 0;background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.18);border-radius:10px;padding:.55rem .75rem;max-width:360px;align-items:center;gap:.5rem;justify-content:space-between">
+        <span id="bm-step2-addr-text" style="font-size:.78rem;color:#00ff88;font-weight:700;word-break:break-all;flex:1;text-align:left"></span>
+        <button onclick="bmCopyPresaleAddr()" title="Copy address" style="flex-shrink:0;background:rgba(0,255,136,0.15);border:1px solid rgba(0,255,136,0.35);color:#00ff88;border-radius:6px;padding:.3rem .55rem;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap" id="bm-copy-btn">📋 Copy</button>
+      </div>
       <button id="bm-done-btn" onclick="closeBuyModal()" style="
         display:none;margin-top:1.5rem;background:#00ff88;color:#020a05;padding:.75rem 2rem;
         border-radius:9px;font-weight:900;border:none;cursor:pointer;
@@ -1516,7 +1523,10 @@ body{
         <div class="adm-scard">
           <div class="adm-scard-title">🏦 Deposit Wallet</div>
           <div class="adm-slabel">Current active wallet</div>
-          <div class="adm-whint" id="adm-wallet-display">—</div>
+          <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+            <div class="adm-whint" id="adm-wallet-display">—</div>
+            <button id="adm-wallet-copy-btn" onclick="admCopyWallet()" style="display:none;background:rgba(0,255,136,0.12);border:1px solid rgba(0,255,136,0.3);color:#00ff88;border-radius:6px;padding:.2rem .5rem;font-size:.75rem;font-weight:700;cursor:pointer">📋 Copy</button>
+          </div>
           <div class="adm-slabel">New wallet address</div>
           <input class="adm-sinput" id="adm-s-wallet" placeholder="0x…"/>
           <div class="adm-slabel">USDT Contract (Robinhood Chain)</div>
@@ -1780,6 +1790,11 @@ function openBuyModal(connectOnly) {
 
 function closeBuyModal() {
   document.getElementById('buy-modal-bg').style.display = 'none';
+  // Reset address wrap for next open
+  const addrWrap = document.getElementById('bm-step2-addr-wrap');
+  if(addrWrap) addrWrap.style.display = 'none';
+  const copyBtn = document.getElementById('bm-copy-btn');
+  if(copyBtn) copyBtn.textContent = '📋 Copy';
 }
 
 function bmValidateWallet(el) {
@@ -1841,7 +1856,11 @@ async function bmConfirm() {
     document.getElementById('bm-step2-icon').textContent  = '⏳';
     document.getElementById('bm-step2-title').textContent = 'PAYMENT PENDING';
     document.getElementById('bm-step2-msg').textContent   =
-      `Thanks @${username}! Your order has been received.\n\nPlease send ${usdt.toFixed(2)} USDT to:\n${PRESALE_WALLET}\n\nOnce your payment is detected, an admin will confirm your order and allocate your $TVT.`;
+      `Thanks @${username}! Your order has been received.\n\nPlease send ${usdt.toFixed(2)} USDT to the address below.\n\nOnce your payment is detected, an admin will confirm your order and allocate your $TVT.`;
+    // Show the address + copy button
+    const addrWrap = document.getElementById('bm-step2-addr-wrap');
+    document.getElementById('bm-step2-addr-text').textContent = PRESALE_WALLET;
+    addrWrap.style.display = 'flex';
     document.getElementById('bm-done-btn').style.display  = 'inline-block';
     setStatus(`⏳ Payment pending for @${username} — awaiting admin confirmation.`, '#ffc800');
 
@@ -1892,6 +1911,42 @@ function toggleRewards(){
   body.style.display = body.style.display === 'none' ? 'block' : 'none';
 }
 
+// ─── COPY ADDRESS HELPERS ────────────────────────────────────────────────────
+function _copyToClipboard(text, btn, origLabel) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => { btn.textContent = origLabel; }, 2000);
+  }).catch(() => {
+    // fallback
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => { btn.textContent = origLabel; }, 2000);
+  });
+}
+
+function copyWalletAddr() {
+  const el = document.getElementById('wc-addr-display');
+  const addr = el.dataset.full || el.textContent;
+  const btn = document.getElementById('wc-addr-copy-btn');
+  _copyToClipboard(addr, btn, '⧉');
+}
+
+function bmCopyPresaleAddr() {
+  const addr = document.getElementById('bm-step2-addr-text').textContent;
+  const btn = document.getElementById('bm-copy-btn');
+  _copyToClipboard(addr, btn, '📋 Copy');
+}
+
+function admCopyWallet() {
+  const addr = document.getElementById('adm-wallet-display').textContent;
+  const btn = document.getElementById('adm-wallet-copy-btn');
+  _copyToClipboard(addr, btn, '📋 Copy');
+}
+
 function disconnectWallet(){
   localStorage.removeItem('tvt_wallet_connected');
   localStorage.removeItem('tvt_wallet_addr');
@@ -1900,6 +1955,8 @@ function disconnectWallet(){
   document.getElementById('wc-avatar').textContent = '?';
   document.getElementById('wc-username').textContent = 'Guest';
   document.getElementById('wc-addr-display').textContent = 'Not connected';
+  const copyBtn = document.getElementById('wc-addr-copy-btn');
+  if(copyBtn) copyBtn.style.display = 'none';
   document.getElementById('wc-connect-btn').textContent = 'Connect';
   document.getElementById('wc-connect-btn').onclick = openConnectWallet;
   document.getElementById('wc-connect-btn').style.cssText = '';
@@ -1939,6 +1996,10 @@ function showWalletConnected(addr, username){
   document.getElementById('wc-avatar').textContent       = initial;
   document.getElementById('wc-username').textContent     = uname;
   document.getElementById('wc-addr-display').textContent = short;
+  // Store full address for copying and show copy button
+  document.getElementById('wc-addr-display').dataset.full = addr;
+  const copyBtn = document.getElementById('wc-addr-copy-btn');
+  if(copyBtn) copyBtn.style.display = 'inline-block';
   const btn = document.getElementById('wc-connect-btn');
   btn.textContent = 'Connected ✓';
   btn.style.background    = 'rgba(0,255,136,0.08)';
@@ -2235,6 +2296,8 @@ document.addEventListener('DOMContentLoaded',function(){
 function admPopulateSettings(){
   const s = window.TVT_DB.settings;
   document.getElementById('adm-wallet-display').textContent = s.wallet||'—';
+  const admCopyBtn = document.getElementById('adm-wallet-copy-btn');
+  if(admCopyBtn) admCopyBtn.style.display = s.wallet ? 'inline-block' : 'none';
   document.getElementById('adm-s-wallet').value  = s.wallet||'';
   document.getElementById('adm-s-usdt').value    = s.usdtContract||'';
   document.getElementById('adm-s-raised').value  = s.raised||'';
