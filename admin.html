@@ -406,16 +406,39 @@ function populateSettingsForm(){
   document.getElementById('s-tvt-price').value     = s.tvtPrice;
 }
 
-// ── LOAD / SAVE ORDERS — via Flask API ───────────────────────────
-async function loadOrders(){
+// ── JSONBIN CONFIG — same bin as index.html ───────────────────────
+const JB_KEY = '$2a$10$ExAi99dcwV2sVLtZpqcke.Vfdd/K8sLNCC2lo1hRtx2Ex38LyHhDa';
+const JB_BIN = '6a9e4672ac6210605aae1ec3';
+const JB_URL = `https://api.jsonbin.io/v3/b/${JB_BIN}`;
+
+async function jbGet(){
   try {
-    const res = await fetch('/api/submissions');
-    if(!res.ok) return [];
-    return await res.json();
-  } catch(e){ return []; }
+    const r = await fetch(JB_URL + '/latest', { headers:{ 'X-Master-Key': JB_KEY } });
+    if(!r.ok) throw new Error('read failed');
+    const j = await r.json();
+    return Array.isArray(j.record?.orders) ? j.record.orders : [];
+  } catch(e){ console.warn('JSONBin read error', e); return []; }
 }
 
-function persistOrders(){ /* no-op — Flask handles persistence */ }
+async function jbPut(orders){
+  try {
+    const r = await fetch(JB_URL, {
+      method: 'PUT',
+      headers:{ 'Content-Type':'application/json', 'X-Master-Key': JB_KEY },
+      body: JSON.stringify({ orders })
+    });
+    if(!r.ok) throw new Error('write failed');
+  } catch(e){ console.warn('JSONBin write error', e); }
+}
+
+// ── LOAD / SAVE ORDERS — via JSONBin ─────────────────────────────
+async function loadOrders(){
+  return await jbGet();
+}
+
+async function persistOrders(){
+  await jbPut(submissions);
+}
 
 async function pollOrders(){
   try {
@@ -429,13 +452,12 @@ async function pollOrders(){
 
 function refreshDebug(){
   const el = document.getElementById('debug-output');
-  fetch('/api/submissions')
-    .then(r => r.json())
+  jbGet()
     .then(data => {
-      el.textContent = `✅ Flask connected — ${data.length} submission(s):\n\n` + JSON.stringify(data, null, 2);
+      el.textContent = `✅ JSONBin connected — ${data.length} submission(s):\n\n` + JSON.stringify(data, null, 2);
     })
     .catch(e => {
-      el.textContent = '❌ Cannot reach Flask at /api/submissions\n\nRun: python app.py\n\n' + e.message;
+      el.textContent = '❌ Cannot reach JSONBin\n\n' + e.message;
     });
 }
 
@@ -564,30 +586,24 @@ function renderTable(){
 
 // ── QUICK ACTIONS ─────────────────────────────────────────────────
 async function quickConfirm(id){
-  const s = submissions.find(x=>x.id===id);
+  const s = submissions.find(x=>String(x.id)===String(id));
   if(!s) return;
   if(!s.tvt){ openEditModal(id); showToast('⚠ Set $TVT balance before confirming.','var(--yellow)'); return; }
-  await fetch(`/api/submissions/${encodeURIComponent(id)}`, {
-    method:'PATCH', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ status:'confirmed' })
-  });
-  submissions = await loadOrders();
+  s.status = 'confirmed';
+  await persistOrders();
   renderAll(); showToast('✅ Confirmed @'+s.username);
 }
 async function quickReject(id){
-  const s = submissions.find(x=>x.id===id);
+  const s = submissions.find(x=>String(x.id)===String(id));
   if(!s) return;
-  await fetch(`/api/submissions/${encodeURIComponent(id)}`, {
-    method:'PATCH', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ status:'rejected' })
-  });
-  submissions = await loadOrders();
+  s.status = 'rejected';
+  await persistOrders();
   renderAll(); showToast('✕ Rejected @'+s.username,'var(--red)');
 }
 
 // ── MODAL ─────────────────────────────────────────────────────────
 function openEditModal(id){
-  const s = submissions.find(x=>x.id===id);
+  const s = submissions.find(x=>String(x.id)===String(id));
   if(!s) return;
   isAdding = false; editingId = id;
   document.getElementById('modal-title').textContent           = 'EDIT ENTRY';
@@ -625,23 +641,20 @@ async function saveModal(){
     const username = document.getElementById('m-username').value.trim();
     const wallet   = document.getElementById('m-wallet').value.trim();
     if(!username || !wallet){ showToast('⚠ Username and wallet required.','var(--yellow)'); return; }
-    const res = await fetch('/api/submissions', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ username, wallet, usdt, tvt, status })
+    submissions.push({
+      id: 'TVT-' + Date.now(),
+      username, wallet, usdt, tvt, status,
+      date: new Date().toISOString().slice(0,10)
     });
-    if(!res.ok){ showToast('⚠ Failed to add entry.','var(--red)'); return; }
+    await persistOrders();
     showToast('✅ Entry added.');
   } else {
-    const s = submissions.find(x=>x.id===editingId);
-    const res = await fetch(`/api/submissions/${encodeURIComponent(editingId)}`, {
-      method:'PATCH', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ usdt, tvt, status })
-    });
-    if(!res.ok){ showToast('⚠ Update failed.','var(--red)'); return; }
+    const s = submissions.find(x=>String(x.id)===String(editingId));
+    if(s){ Object.assign(s, { usdt, tvt, status }); }
+    await persistOrders();
     showToast('✅ @'+(s?.username||'')+' updated.');
   }
   closeModal();
-  submissions = await loadOrders();
   renderAll();
 }
 
