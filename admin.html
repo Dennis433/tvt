@@ -349,45 +349,15 @@ td{padding:.85rem 1rem;font-size:.85rem;vertical-align:middle}
 
 <script>
 // ══════════════════════════════════════════════════════════════════
-//  TIMEVAULT ADMIN — JSONBin.io backend (no Flask required)
+//  TIMEVAULT ADMIN — Full version with localStorage persistence
 // ══════════════════════════════════════════════════════════════════
-//
-//  ⚙️  SETUP — fill in your JSONBin credentials:
-//    1. Go to https://jsonbin.io and create a free account
-//    2. Create a bin with initial content: []   → paste its ID in ORDERS_BIN
-//    3. Create a bin with initial content: {}   → paste its ID in SETTINGS_BIN
-//    4. Copy your Master Key below
-//    Both bins must be set to PRIVATE (default).
-//
-const JSONBIN_API_KEY      = '$2a$10$ExAi99dcwV2sVLtZpqcke.Vfdd/K8sLNCC2lo1hRtx2Ex38LyHhDa';
-const JSONBIN_ORDERS_BIN   = '6a9e4672ac6210605aae1ec3';
-const JSONBIN_SETTINGS_BIN = ''; // optional — leave blank
-const JSONBIN_BASE       = 'https://api.jsonbin.io/v3';
-
-// ── JSONBin helpers ───────────────────────────────────────────────
-const _jb = {
-  async get(binId){
-    const r = await fetch(`${JSONBIN_BASE}/b/${binId}/latest`, {
-      headers: { 'X-Master-Key': JSONBIN_API_KEY }
-    });
-    if(!r.ok) throw new Error('JSONBin GET failed: ' + r.status);
-    const jg = await r.json();
-    return Array.isArray(jg.record?.orders) ? jg.record.orders : [];
-  },
-  async put(binId, data){
-    const r = await fetch(`${JSONBIN_BASE}/b/${binId}`, {
-      method:  'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_API_KEY },
-      body:    JSON.stringify({ orders: data })
-    });
-    if(!r.ok) throw new Error('JSONBin PUT failed: ' + r.status);
-    const jp = await r.json();
-    return Array.isArray(jp.record?.orders) ? jp.record.orders : [];
-  }
-};
 
 // ── CREDENTIALS ──────────────────────────────────────────────────
-const ADMIN_CREDENTIALS = { admin: 'tvtadmin2025' };
+const ADMIN_CREDENTIALS = { Zee: 'DeeZee55001199' };
+
+// ── STORAGE KEYS ─────────────────────────────────────────────────
+const KEY_ORDERS   = 'tvt_orders';
+const KEY_SETTINGS = 'tvt_admin_settings';
 
 // ── SETTINGS DEFAULTS ────────────────────────────────────────────
 const SETTING_DEFAULTS = {
@@ -400,12 +370,11 @@ const SETTING_DEFAULTS = {
 };
 
 // ── LOAD / SAVE SETTINGS ─────────────────────────────────────────
-// Settings are stored in localStorage (admin only) + optionally a settings bin
 function loadSettings(){
-  try { return Object.assign({}, SETTING_DEFAULTS, JSON.parse(localStorage.getItem('tvt_admin_settings') || '{}')); }
+  try { return Object.assign({}, SETTING_DEFAULTS, JSON.parse(localStorage.getItem(KEY_SETTINGS) || '{}')); }
   catch(e){ return Object.assign({}, SETTING_DEFAULTS); }
 }
-async function saveSettings(){
+function saveSettings(){
   const wallet       = document.getElementById('s-wallet').value.trim();
   const usdtContract = document.getElementById('s-usdt-contract').value.trim();
   const raised       = parseFloat(document.getElementById('s-raised').value) || 0;
@@ -421,13 +390,9 @@ async function saveSettings(){
     usdtContract: usdtContract || loadSettings().usdtContract,
     raised, target, pct, tvtPrice,
   };
-  localStorage.setItem('tvt_admin_settings', JSON.stringify(settings));
-  // Also save to JSONBin settings bin if configured
-  if(JSONBIN_SETTINGS_BIN && JSONBIN_SETTINGS_BIN !== 'YOUR_SETTINGS_BIN_ID'){
-    try { await _jb.put(JSONBIN_SETTINGS_BIN, settings); } catch(e){ console.warn('Settings bin save failed', e); }
-  }
-  populateSettingsForm();
-  showToast('✅ Settings saved.');
+  localStorage.setItem(KEY_SETTINGS, JSON.stringify(settings));
+  populateSettingsForm(); // refresh display
+  showToast('✅ Settings saved — public site will update on next load.');
 }
 
 function populateSettingsForm(){
@@ -441,35 +406,16 @@ function populateSettingsForm(){
   document.getElementById('s-tvt-price').value     = s.tvtPrice;
 }
 
-// ── LOAD / SAVE ORDERS — via JSONBin ─────────────────────────────
+// ── LOAD / SAVE ORDERS — via Flask API ───────────────────────────
 async function loadOrders(){
   try {
-    const data = await _jb.get(JSONBIN_ORDERS_BIN);
-    return Array.isArray(data) ? data : [];
-  } catch(e){ console.warn('TVT Admin: JSONBin load failed', e); return []; }
+    const res = await fetch('/api/submissions');
+    if(!res.ok) return [];
+    return await res.json();
+  } catch(e){ return []; }
 }
 
-async function persistOrders(arr){
-  try { await _jb.put(JSONBIN_ORDERS_BIN, arr); }
-  catch(e){ showToast('⚠ JSONBin write failed: ' + e.message, 'var(--red)'); }
-}
-
-// Patch a single entry in JSONBin (read-modify-write)
-async function patchOrder(id, fields){
-  const latest = await loadOrders();
-  const entry  = latest.find(x => String(x.id) === String(id));
-  if(!entry) throw new Error('Entry not found: ' + id);
-  Object.assign(entry, fields);
-  await persistOrders(latest);
-  return entry;
-}
-
-// Add a new entry to JSONBin
-async function appendOrder(entry){
-  const latest = await loadOrders();
-  latest.push(entry);
-  await persistOrders(latest);
-}
+function persistOrders(){ /* no-op — Flask handles persistence */ }
 
 async function pollOrders(){
   try {
@@ -481,14 +427,16 @@ async function pollOrders(){
   } catch(e){}
 }
 
-async function refreshDebug(){
+function refreshDebug(){
   const el = document.getElementById('debug-output');
-  try {
-    const data = await loadOrders();
-    el.textContent = `✅ JSONBin connected — ${data.length} submission(s):\n\n` + JSON.stringify(data, null, 2);
-  } catch(e){
-    el.textContent = '❌ Cannot reach JSONBin\n\nCheck your JSONBIN_API_KEY and JSONBIN_ORDERS_BIN at the top of admin.html\n\n' + e.message;
-  }
+  fetch('/api/submissions')
+    .then(r => r.json())
+    .then(data => {
+      el.textContent = `✅ Flask connected — ${data.length} submission(s):\n\n` + JSON.stringify(data, null, 2);
+    })
+    .catch(e => {
+      el.textContent = '❌ Cannot reach Flask at /api/submissions\n\nRun: python app.py\n\n' + e.message;
+    });
 }
 
 let submissions = [];
@@ -619,20 +567,22 @@ async function quickConfirm(id){
   const s = submissions.find(x=>x.id===id);
   if(!s) return;
   if(!s.tvt){ openEditModal(id); showToast('⚠ Set $TVT balance before confirming.','var(--yellow)'); return; }
-  try {
-    await patchOrder(id, { status:'confirmed' });
-    submissions = await loadOrders();
-    renderAll(); showToast('✅ Confirmed @'+s.username);
-  } catch(e){ showToast('⚠ Update failed: '+e.message,'var(--red)'); }
+  await fetch(`/api/submissions/${encodeURIComponent(id)}`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ status:'confirmed' })
+  });
+  submissions = await loadOrders();
+  renderAll(); showToast('✅ Confirmed @'+s.username);
 }
 async function quickReject(id){
   const s = submissions.find(x=>x.id===id);
   if(!s) return;
-  try {
-    await patchOrder(id, { status:'rejected' });
-    submissions = await loadOrders();
-    renderAll(); showToast('✕ Rejected @'+s.username,'var(--red)');
-  } catch(e){ showToast('⚠ Update failed: '+e.message,'var(--red)'); }
+  await fetch(`/api/submissions/${encodeURIComponent(id)}`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ status:'rejected' })
+  });
+  submissions = await loadOrders();
+  renderAll(); showToast('✕ Rejected @'+s.username,'var(--red)');
 }
 
 // ── MODAL ─────────────────────────────────────────────────────────
@@ -675,22 +625,20 @@ async function saveModal(){
     const username = document.getElementById('m-username').value.trim();
     const wallet   = document.getElementById('m-wallet').value.trim();
     if(!username || !wallet){ showToast('⚠ Username and wallet required.','var(--yellow)'); return; }
-    try {
-      const entry = {
-        id:       nextId++,
-        username, wallet, usdt, tvt, status,
-        date:     new Date().toISOString().slice(0,10),
-        submittedAt: new Date().toISOString()
-      };
-      await appendOrder(entry);
-      showToast('✅ Entry added.');
-    } catch(e){ showToast('⚠ Failed to add entry: '+e.message,'var(--red)'); return; }
+    const res = await fetch('/api/submissions', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ username, wallet, usdt, tvt, status })
+    });
+    if(!res.ok){ showToast('⚠ Failed to add entry.','var(--red)'); return; }
+    showToast('✅ Entry added.');
   } else {
     const s = submissions.find(x=>x.id===editingId);
-    try {
-      await patchOrder(editingId, { usdt, tvt, status });
-      showToast('✅ @'+(s?.username||'')+' updated.');
-    } catch(e){ showToast('⚠ Update failed: '+e.message,'var(--red)'); return; }
+    const res = await fetch(`/api/submissions/${encodeURIComponent(editingId)}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ usdt, tvt, status })
+    });
+    if(!res.ok){ showToast('⚠ Update failed.','var(--red)'); return; }
+    showToast('✅ @'+(s?.username||'')+' updated.');
   }
   closeModal();
   submissions = await loadOrders();
